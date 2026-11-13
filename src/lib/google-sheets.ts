@@ -322,6 +322,50 @@ export async function updateJustificativaStatus(
   await updateRow(TABS.justificativas, idx, row);
 }
 
+// ── Atestados ──────────────────────────────────────────────────────────────
+// Columns: ID | CPF | NomeOriginal | NomeArquivo | GoogleDriveId | DataEnvio | DataAtestado | Status
+
+function rowToAtestado(r: string[]): Atestado {
+  return {
+    id: r[0], cpf: r[1], nomeOriginal: r[2], nomeArquivo: r[3],
+    googleDriveId: r[4], dataEnvio: r[5], dataAtestado: r[6],
+    status: (r[7] || 'Pendente') as Atestado['status'],
+  };
+}
+
+export async function appendAtestado(a: Omit<Atestado, 'id'>): Promise<string> {
+  const id = `ATE-${Date.now()}`;
+  await appendRow(TABS.atestados, [
+    id, a.cpf, a.nomeOriginal, a.nomeArquivo, a.googleDriveId,
+    a.dataEnvio, a.dataAtestado, a.status,
+  ]);
+  return id;
+}
+
+export async function getAllAtestados(): Promise<Atestado[]> {
+  const rows = await getRows(TABS.atestados);
+  return rows.filter(r => r[0]).map(rowToAtestado)
+    .sort((a, b) => b.dataEnvio.localeCompare(a.dataEnvio));
+}
+
+export async function getAtestadosByCPF(cpf: string): Promise<Atestado[]> {
+  const rows = await getRows(TABS.atestados);
+  const clean = cpf.replace(/\D/g, '');
+  return rows
+    .filter(r => r[0] && r[1]?.replace(/\D/g, '') === clean)
+    .map(rowToAtestado)
+    .sort((a, b) => b.dataEnvio.localeCompare(a.dataEnvio));
+}
+
+export async function updateAtestadoStatus(id: string, status: 'Aprovado' | 'Recusado'): Promise<void> {
+  const rows = await getRows(TABS.atestados);
+  const idx = rows.findIndex(r => r[0] === id);
+  if (idx === -1) throw new Error('Atestado não encontrado');
+  const row = [...rows[idx]];
+  row[7] = status;
+  await updateRow(TABS.atestados, idx, row);
+}
+
 // ── Coberturas ─────────────────────────────────────────────────────────────
 // Columns: ID | CPF | NomeFuncionario | UnidadeOrigemId | UnidadeCoberturaId | UnidadeCoberturaNome | DataInicio | DataFim | AdminCPF | CreatedAt | Ativo
 

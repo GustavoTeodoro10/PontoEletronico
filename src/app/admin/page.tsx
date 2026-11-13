@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import {
   getAllRegistrosByDate,
   getAllJustificativas,
+  getAllAtestados,
   getAllFuncionarios,
   getAllUnidades,
   getAllAssinaturasPendentes,
@@ -20,10 +21,11 @@ export default async function AdminPage() {
 
   const hoje = new Date().toISOString().slice(0, 10);
 
-  const [registrosHoje, justificativas, funcionarios, unidades, assinaturasPendentes] =
+  const [registrosHoje, justificativas, atestados, funcionarios, unidades, assinaturasPendentes] =
     await Promise.all([
       getAllRegistrosByDate(hoje),
       getAllJustificativas(),
+      getAllAtestados(),
       getAllFuncionarios(),
       getAllUnidades(),
       role === 'admin' ? getAllAssinaturasPendentes() : Promise.resolve([]),
@@ -34,6 +36,7 @@ export default async function AdminPage() {
       role={role}
       registrosHoje={registrosHoje}
       justificativas={justificativas}
+      atestados={atestados}
       assinaturasPendentes={assinaturasPendentes}
       funcionarios={funcionarios}
       unidades={unidades}

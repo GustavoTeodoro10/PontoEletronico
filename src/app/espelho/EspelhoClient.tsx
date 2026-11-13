@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Registro, AssinaturaEspelho, Justificativa } from '@/types';
+import type { Registro, AssinaturaEspelho, Justificativa, Atestado } from '@/types';
 import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
 
 const TIPOS_JUSTIFICATIVA = [
@@ -21,6 +21,7 @@ interface Props {
   matricula: string;
   registros: Registro[];
   justificativas: Justificativa[];
+  atestados: Atestado[];
   ano: number;
   mes: number;
   assinatura: AssinaturaEspelho | null;
@@ -29,7 +30,7 @@ interface Props {
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricula, registros, justificativas: initialJustificativas, ano, mes, assinatura: initialAssinatura }: Props) {
+export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricula, registros, justificativas: initialJustificativas, atestados: initialAtestados, ano, mes, assinatura: initialAssinatura }: Props) {
   const router = useRouter();
   const [assinatura, setAssinatura] = useState(initialAssinatura);
   const [assinando, setAssinando] = useState(false);
@@ -45,6 +46,15 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
   const [justLoading, setJustLoading] = useState(false);
   const [justErro, setJustErro] = useState('');
   const [justOk, setJustOk] = useState(false);
+
+  // Atestados
+  const [atestados, setAtestados] = useState<Atestado[]>(initialAtestados);
+  const [ateOpen, setAteOpen] = useState(false);
+  const [ateFile, setAteFile] = useState<File | null>(null);
+  const [ateData, setAteData] = useState('');
+  const [ateLoading, setAteLoading] = useState(false);
+  const [ateErro, setAteErro] = useState('');
+  const [ateOk, setAteOk] = useState(false);
 
   const unidadeNome = registros[0]?.unidadeNome ?? '';
 
@@ -74,6 +84,40 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
     if (novoMes < 1)  { novoMes = 12; novoAno--; }
     if (novoMes > 12) { novoMes = 1;  novoAno++; }
     router.push(`/espelho?ano=${novoAno}&mes=${novoMes}`);
+  }
+
+  async function handleEnviarAtestado(e: React.FormEvent) {
+    e.preventDefault();
+    setAteErro('');
+    setAteOk(false);
+    if (!ateFile) { setAteErro('Selecione o arquivo.'); return; }
+    if (!ateData) { setAteErro('Informe a data do atestado.'); return; }
+    setAteLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', ateFile);
+      fd.append('dataAtestado', ateData);
+      const res = await fetch('/api/funcionario/atestado', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!res.ok) { setAteErro(json.error || 'Erro ao enviar.'); return; }
+      setAteOk(true);
+      const novo: Atestado = {
+        id: json.id,
+        cpf,
+        nomeOriginal: ateFile.name,
+        nomeArquivo: ateFile.name,
+        googleDriveId: '',
+        dataEnvio: new Date().toISOString(),
+        dataAtestado: ateData,
+        status: 'Pendente',
+      };
+      setAtestados(prev => [novo, ...prev]);
+      setAteFile(null);
+      setAteData('');
+      setTimeout(() => { setAteOk(false); setAteOpen(false); }, 2500);
+    } finally {
+      setAteLoading(false);
+    }
   }
 
   async function handleEnviarJustificativa(e: React.FormEvent) {
@@ -319,6 +363,111 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
             })}
           </div>
         )}
+        {/* Atestados */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => { setAteOpen(o => !o); setAteErro(''); setAteOk(false); }}
+            className="w-full flex items-center justify-between px-4 py-4"
+          >
+            <p className="text-xs font-semibold text-eif-text uppercase tracking-wide">Atestados Médicos</p>
+            <div className="flex items-center gap-2">
+              {atestados.length > 0 && (
+                <span className="text-xs bg-eif-cream-mid text-eif-dark rounded-full px-2 py-0.5 font-medium">
+                  {atestados.length}
+                </span>
+              )}
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                className={`text-eif-text transition-transform ${ateOpen ? 'rotate-180' : ''}`}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </button>
+
+          {ateOpen && (
+            <div className="border-t border-eif-cream-mid px-4 pb-4 flex flex-col gap-4 pt-3">
+              {atestados.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {atestados.map(a => (
+                    <div key={a.id} className="rounded-lg border border-eif-cream-mid p-3 flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-eif-dark truncate">{a.nomeOriginal}</p>
+                        <p className="text-xs text-eif-text mt-0.5">
+                          Data: {new Date(a.dataAtestado + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        </p>
+                        <p className="text-xs text-eif-text">
+                          Enviado: {new Date(a.dataEnvio).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <span className={`text-xs rounded-full px-2 py-0.5 font-medium shrink-0 ${
+                        a.status === 'Aprovado' ? 'bg-green-100 text-green-700' :
+                        a.status === 'Recusado' ? 'bg-red-100 text-red-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {a.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleEnviarAtestado} className="flex flex-col gap-3">
+                <p className="text-xs font-semibold text-eif-dark">Enviar novo atestado</p>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-eif-text">Data do atestado</label>
+                  <input
+                    type="date"
+                    value={ateData}
+                    onChange={e => setAteData(e.target.value)}
+                    className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white focus:outline-none focus:ring-2 focus:ring-eif-red/30"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-eif-text">Arquivo (PDF, JPG ou PNG · máx. 5 MB)</label>
+                  <label className="flex items-center gap-3 border border-eif-cream-mid rounded-lg px-3 py-2.5 cursor-pointer bg-white hover:bg-eif-cream/50 transition">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-eif-red shrink-0">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <span className="text-sm text-eif-text truncate flex-1">
+                      {ateFile ? ateFile.name : 'Escolher arquivo…'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      onChange={e => { setAteFile(e.target.files?.[0] ?? null); setAteErro(''); }}
+                    />
+                  </label>
+                </div>
+                {ateErro && (
+                  <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{ateErro}</p>
+                )}
+                {ateOk && (
+                  <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">Atestado enviado com sucesso!</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={ateLoading}
+                  className="bg-eif-red text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {ateLoading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                        <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                      </svg>
+                      Enviando…
+                    </>
+                  ) : 'Enviar Atestado'}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+
         {/* Justificativas */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <button

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Registro, Justificativa, Funcionario, Unidade, AssinaturaEspelho } from '@/types';
+import type { Registro, Justificativa, Atestado, Funcionario, Unidade, AssinaturaEspelho } from '@/types';
 import { formatCPF, cleanCPF } from '@/lib/cpf';
 
 interface Props {
   role: string;
   registrosHoje: Registro[];
   justificativas: Justificativa[];
+  atestados: Atestado[];
   assinaturasPendentes: AssinaturaEspelho[];
   funcionarios: Funcionario[];
   unidades: Unidade[];
@@ -16,13 +17,13 @@ interface Props {
   hoje: string;
 }
 
-type Tab = 'hoje' | 'justificativas' | 'funcionarios' | 'assinaturas' | 'coberturas' | 'cadastrar';
+type Tab = 'hoje' | 'justificativas' | 'atestados' | 'funcionarios' | 'assinaturas' | 'coberturas' | 'cadastrar';
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 export default function AdminClient({
-  role, registrosHoje, justificativas: initialJustificativas, assinaturasPendentes,
-  funcionarios, unidades, totalFuncionarios, hoje,
+  role, registrosHoje, justificativas: initialJustificativas, atestados: initialAtestados,
+  assinaturasPendentes, funcionarios, unidades, totalFuncionarios, hoje,
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('hoje');
@@ -31,6 +32,10 @@ export default function AdminClient({
   const [justificativas, setJustificativas] = useState<Justificativa[]>(initialJustificativas);
   const [justRespostas, setJustRespostas] = useState<Record<string, string>>({});
   const [justLoading, setJustLoading] = useState('');
+
+  // Atestados
+  const [atestados, setAtestados] = useState<Atestado[]>(initialAtestados);
+  const [ateLoading, setAteLoading] = useState('');
 
   // Reset senha
   const [resettingCpf, setResettingCpf] = useState('');
@@ -56,6 +61,21 @@ export default function AdminClient({
       setJustificativas(prev => prev.map(j => j.id === id ? { ...j, status, gestorResposta: justRespostas[id] ?? '' } : j));
     } finally {
       setJustLoading('');
+    }
+  }
+
+  async function handleAtestado(id: string, status: 'Aprovado' | 'Recusado') {
+    setAteLoading(id);
+    try {
+      const res = await fetch(`/api/admin/atestado/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) return;
+      setAtestados(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    } finally {
+      setAteLoading('');
     }
   }
 
@@ -175,10 +195,11 @@ export default function AdminClient({
 
         {/* Tabs */}
         <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
-          {(['hoje', 'justificativas', 'assinaturas', 'funcionarios', 'coberturas', 'cadastrar'] as Tab[]).map(t => (
+          {(['hoje', 'justificativas', 'atestados', 'assinaturas', 'funcionarios', 'coberturas', 'cadastrar'] as Tab[]).map(t => (
             <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
               {t === 'hoje'          ? `Hoje (${registrosHoje.length})`
                 : t === 'justificativas' ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
+                : t === 'atestados'      ? `Atestos (${atestados.filter(a => a.status === 'Pendente').length})`
                 : t === 'assinaturas'    ? `Assin. (${assinaturasPendentes.length})`
                 : t === 'funcionarios'   ? 'Funcionários'
                 : t === 'coberturas'     ? 'Coberturas'
@@ -269,6 +290,73 @@ export default function AdminClient({
                             {justLoading === j.id ? '…' : 'Recusar'}
                           </button>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab: Atestados */}
+        {tab === 'atestados' && (
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            {atestados.length === 0 ? (
+              <p className="text-center text-eif-text text-sm p-6">Nenhum atestado enviado.</p>
+            ) : (
+              <div className="divide-y divide-eif-cream-mid">
+                {atestados.map(a => (
+                  <div key={a.id} className="px-4 py-4 flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-eif-dark truncate">{a.nomeOriginal}</p>
+                        <p className="text-xs text-eif-text">
+                          CPF: {a.cpf} · Data: {new Date(a.dataAtestado + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        </p>
+                        <p className="text-xs text-eif-text">
+                          Enviado: {new Date(a.dataEnvio).toLocaleDateString('pt-BR')}
+                        </p>
+                        {a.googleDriveId && (
+                          <a
+                            href={`https://drive.google.com/file/d/${a.googleDriveId}/view`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-eif-red font-medium mt-1 inline-flex items-center gap-1"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                              <polyline points="15 3 21 3 21 9"/>
+                              <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                            Ver arquivo
+                          </a>
+                        )}
+                      </div>
+                      <span className={`shrink-0 text-xs rounded-full px-2 py-0.5 font-medium ${
+                        a.status === 'Aprovado' ? 'bg-green-100 text-green-700' :
+                        a.status === 'Recusado' ? 'bg-red-100 text-red-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {a.status}
+                      </span>
+                    </div>
+                    {a.status === 'Pendente' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAtestado(a.id, 'Aprovado')}
+                          disabled={ateLoading === a.id}
+                          className="flex-1 bg-green-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-60"
+                        >
+                          {ateLoading === a.id ? '…' : 'Aprovar'}
+                        </button>
+                        <button
+                          onClick={() => handleAtestado(a.id, 'Recusado')}
+                          disabled={ateLoading === a.id}
+                          className="flex-1 bg-red-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-60"
+                        >
+                          {ateLoading === a.id ? '…' : 'Recusar'}
+                        </button>
                       </div>
                     )}
                   </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Registro, AssinaturaEspelho, Justificativa, Atestado } from '@/types';
 import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
+import EIF_LOGO from '@/lib/eif-logo';
 
 const TIPOS_JUSTIFICATIVA = [
   'Falta justificada',
@@ -196,11 +197,12 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
       <header className="bg-eif-red text-white px-4 pt-safe pb-4">
         <div className="max-w-sm mx-auto">
           <div className="flex items-center gap-3 mb-1">
-            <button onClick={() => router.back()} className="text-white/80 hover:text-white">
+            <button onClick={() => router.back()} className="text-white/80 hover:text-white shrink-0">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
+            <img src={EIF_LOGO} alt="EIF" className="h-8 w-8 rounded-lg bg-white/10 object-contain p-0.5 shrink-0" />
             <h1 className="font-semibold text-lg flex-1">Espelho do Ponto</h1>
             <button
               onClick={handleBaixarPDF}

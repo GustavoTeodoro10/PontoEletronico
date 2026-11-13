@@ -117,6 +117,17 @@ export interface Dispositivo {
   ativo: boolean;
 }
 
+export interface Alerta {
+  id: string;
+  tipo: 'fora_do_raio' | 'ponto_incompleto';
+  cpf: string;
+  nome: string;
+  unidadeId: string;
+  unidadeNome: string;
+  dataHora: string;
+  detalhes?: string;
+}
+
 export interface BancoHorasDia {
   data: string;         // YYYY-MM-DD
   horasTrabalhadas: number;

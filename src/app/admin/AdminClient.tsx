@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Registro, Justificativa, Atestado, Funcionario, Unidade, AssinaturaEspelho } from '@/types';
+import type { Registro, Justificativa, Atestado, Funcionario, Unidade, AssinaturaEspelho, Alerta } from '@/types';
 import { formatCPF, cleanCPF } from '@/lib/cpf';
 import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
 import EIF_LOGO from '@/lib/eif-logo';
@@ -19,7 +19,7 @@ interface Props {
   hoje: string;
 }
 
-type Tab = 'hoje' | 'justificativas' | 'atestados' | 'assinaturas' | 'relatorio' | 'funcionarios' | 'coberturas' | 'cadastrar' | 'unidades';
+type Tab = 'hoje' | 'alertas' | 'justificativas' | 'atestados' | 'assinaturas' | 'relatorio' | 'funcionarios' | 'coberturas' | 'cadastrar' | 'unidades';
 
 interface RelatorioData {
   registros: Registro[];
@@ -163,6 +163,25 @@ export default function AdminClient({
   const [cobFim, setCobFim] = useState('');
   const [cobLoading, setCobLoading] = useState(false);
   const [cobMsg, setCobMsg] = useState('');
+
+  // Alertas
+  const [alertasData, setAlertasData] = useState<Alerta[] | null>(null);
+  const [alertasLoading, setAlertasLoading] = useState(false);
+  const [alertaFiltro, setAlertaFiltro] = useState<'todos' | 'fora_do_raio' | 'ponto_incompleto'>('todos');
+
+  useEffect(() => {
+    setAlertasLoading(true);
+    fetch('/api/admin/alertas')
+      .then(r => r.ok ? r.json() : { alertas: [] })
+      .then(j => setAlertasData(j.alertas ?? []))
+      .catch(() => setAlertasData([]))
+      .finally(() => setAlertasLoading(false));
+  }, []);
+
+  const alertasFiltrados = (alertasData ?? []).filter(
+    a => alertaFiltro === 'todos' || a.tipo === alertaFiltro,
+  );
+  const alertasCount = alertasData?.length ?? 0;
 
   async function handleJustificativa(id: string, status: 'Aprovada' | 'Recusada') {
     setJustLoading(id);
@@ -310,9 +329,19 @@ export default function AdminClient({
 
         {/* Tabs */}
         <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
-          {(['hoje', 'justificativas', 'atestados', 'assinaturas', 'relatorio', 'funcionarios', 'coberturas', 'unidades', 'cadastrar'] as Tab[]).map(t => (
+          {(['hoje', 'alertas', 'justificativas', 'atestados', 'assinaturas', 'relatorio', 'funcionarios', 'coberturas', 'unidades', 'cadastrar'] as Tab[]).map(t => (
             <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
               {t === 'hoje'          ? `Hoje (${registrosHoje.length})`
+                : t === 'alertas'        ? (
+                    <span className="flex items-center gap-1">
+                      Alertas
+                      {alertasCount > 0 && (
+                        <span className="bg-red-500 text-white rounded-full text-[10px] font-bold px-1.5 leading-5 min-w-[18px] text-center">
+                          {alertasCount}
+                        </span>
+                      )}
+                    </span>
+                  )
                 : t === 'justificativas' ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
                 : t === 'atestados'      ? `Atestos (${atestados.filter(a => a.status === 'Pendente').length})`
                 : t === 'assinaturas'    ? `Assin. (${assinaturasPendentes.length})`
@@ -351,6 +380,81 @@ export default function AdminClient({
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Tab: Alertas */}
+        {tab === 'alertas' && (
+          <div className="flex flex-col gap-4">
+            {/* Filtros */}
+            <div className="flex gap-2 flex-wrap">
+              {(['todos', 'fora_do_raio', 'ponto_incompleto'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setAlertaFiltro(f)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                    alertaFiltro === f
+                      ? 'bg-eif-red text-white'
+                      : 'bg-white text-eif-text border border-eif-cream-mid hover:text-eif-dark'
+                  }`}
+                >
+                  {f === 'todos' ? 'Todos' : f === 'fora_do_raio' ? 'Fora do raio' : 'Ponto incompleto'}
+                </button>
+              ))}
+            </div>
+
+            {alertasLoading ? (
+              <div className="bg-white rounded-2xl shadow-sm p-6 text-center text-sm text-eif-text">
+                Carregando alertas…
+              </div>
+            ) : alertasFiltrados.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
+                <svg className="mx-auto mb-3 text-green-500" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <p className="text-sm font-medium text-eif-dark">Sem irregularidades</p>
+                <p className="text-xs text-eif-text mt-1">
+                  {alertaFiltro === 'todos'
+                    ? 'Nenhuma irregularidade nos últimos 14 dias.'
+                    : alertaFiltro === 'fora_do_raio'
+                    ? 'Nenhum registro fora do raio nos últimos 14 dias.'
+                    : 'Nenhum ponto incompleto nos últimos 14 dias.'}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div className="divide-y divide-eif-cream-mid">
+                  {alertasFiltrados.map(a => (
+                    <div key={a.id} className="flex items-start gap-3 px-4 py-3">
+                      <span className={`shrink-0 mt-1.5 w-2 h-2 rounded-full ${
+                        a.tipo === 'fora_do_raio' ? 'bg-amber-400' : 'bg-orange-500'
+                      }`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-eif-dark">{a.nome}</p>
+                        <p className="text-xs text-eif-text">{a.unidadeNome}</p>
+                        <p className="text-xs mt-0.5">
+                          <span className={`font-medium ${a.tipo === 'fora_do_raio' ? 'text-amber-600' : 'text-orange-600'}`}>
+                            {a.tipo === 'fora_do_raio' ? 'Fora do raio' : 'Ponto incompleto'}
+                          </span>
+                          {a.detalhes && <span className="text-eif-text"> — {a.detalhes}</span>}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-eif-text tabular-nums">
+                        {new Date(a.dataHora).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                        {a.tipo === 'fora_do_raio' && (
+                          <span className="block text-right">
+                            {new Date(a.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-eif-text/60 text-center">Últimos 14 dias · {alertasData?.length ?? 0} irregularidade{(alertasData?.length ?? 0) !== 1 ? 's' : ''}</p>
           </div>
         )}
 

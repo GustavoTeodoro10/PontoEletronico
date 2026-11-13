@@ -553,6 +553,16 @@ export async function updateDispositivoCounter(id: string, counter: number): Pro
   await updateRow(TABS.dispositivos, idx, row);
 }
 
+export async function getRegistrosRecentes(dias: number): Promise<Registro[]> {
+  const rows = await getRows(TABS.registros);
+  const limite = new Date();
+  limite.setDate(limite.getDate() - dias);
+  const limiteStr = limite.toISOString().slice(0, 10);
+  return rows
+    .filter(r => r[0] && r[6] && r[6].slice(0, 10) >= limiteStr)
+    .map(rowToRegistro);
+}
+
 export async function deactivateDispositivo(id: string, cpf: string): Promise<void> {
   const rows = await getRows(TABS.dispositivos);
   const clean = cpf.replace(/\D/g, '');

@@ -2,8 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Registro, AssinaturaEspelho } from '@/types';
+import type { Registro, AssinaturaEspelho, Justificativa } from '@/types';
 import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
+
+const TIPOS_JUSTIFICATIVA = [
+  'Falta justificada',
+  'Atestado médico',
+  'Licença',
+  'Folga compensatória',
+  'Outros',
+];
 
 interface Props {
   nome: string;
@@ -12,6 +20,7 @@ interface Props {
   cargo: string;
   matricula: string;
   registros: Registro[];
+  justificativas: Justificativa[];
   ano: number;
   mes: number;
   assinatura: AssinaturaEspelho | null;
@@ -20,12 +29,22 @@ interface Props {
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricula, registros, ano, mes, assinatura: initialAssinatura }: Props) {
+export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricula, registros, justificativas: initialJustificativas, ano, mes, assinatura: initialAssinatura }: Props) {
   const router = useRouter();
   const [assinatura, setAssinatura] = useState(initialAssinatura);
   const [assinando, setAssinando] = useState(false);
   const [erroAssinatura, setErroAssinatura] = useState('');
   const [baixandoPDF, setBaixandoPDF] = useState(false);
+
+  // Justificativas
+  const [justificativas, setJustificativas] = useState<Justificativa[]>(initialJustificativas);
+  const [justOpen, setJustOpen] = useState(false);
+  const [justData, setJustData] = useState('');
+  const [justTipo, setJustTipo] = useState(TIPOS_JUSTIFICATIVA[0]);
+  const [justDesc, setJustDesc] = useState('');
+  const [justLoading, setJustLoading] = useState(false);
+  const [justErro, setJustErro] = useState('');
+  const [justOk, setJustOk] = useState(false);
 
   const unidadeNome = registros[0]?.unidadeNome ?? '';
 
@@ -55,6 +74,42 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
     if (novoMes < 1)  { novoMes = 12; novoAno--; }
     if (novoMes > 12) { novoMes = 1;  novoAno++; }
     router.push(`/espelho?ano=${novoAno}&mes=${novoMes}`);
+  }
+
+  async function handleEnviarJustificativa(e: React.FormEvent) {
+    e.preventDefault();
+    setJustErro('');
+    setJustOk(false);
+    if (!justData) { setJustErro('Selecione a data.'); return; }
+    setJustLoading(true);
+    try {
+      const res = await fetch('/api/funcionario/justificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: justData, tipo: justTipo, descricao: justDesc }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setJustErro(json.error || 'Erro ao enviar.'); return; }
+      setJustOk(true);
+      const novaJust: Justificativa = {
+        id: Date.now().toString(),
+        cpf,
+        nome: nomeCompleto,
+        data: justData,
+        tipo: justTipo,
+        descricao: justDesc,
+        status: 'Pendente',
+        gestorResposta: '',
+        createdAt: new Date().toISOString(),
+      };
+      setJustificativas(prev => [novaJust, ...prev]);
+      setJustData('');
+      setJustTipo(TIPOS_JUSTIFICATIVA[0]);
+      setJustDesc('');
+      setTimeout(() => { setJustOk(false); setJustOpen(false); }, 2000);
+    } finally {
+      setJustLoading(false);
+    }
   }
 
   async function handleAssinar() {
@@ -264,6 +319,111 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
             })}
           </div>
         )}
+        {/* Justificativas */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => { setJustOpen(o => !o); setJustErro(''); setJustOk(false); }}
+            className="w-full flex items-center justify-between px-4 py-4"
+          >
+            <p className="text-xs font-semibold text-eif-text uppercase tracking-wide">Justificativas do Mês</p>
+            <div className="flex items-center gap-2">
+              {justificativas.length > 0 && (
+                <span className="text-xs bg-eif-cream-mid text-eif-dark rounded-full px-2 py-0.5 font-medium">
+                  {justificativas.length}
+                </span>
+              )}
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                className={`text-eif-text transition-transform ${justOpen ? 'rotate-180' : ''}`}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </button>
+
+          {justOpen && (
+            <div className="border-t border-eif-cream-mid px-4 pb-4 flex flex-col gap-4 pt-3">
+              {/* Existing justificativas */}
+              {justificativas.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {justificativas.map(j => (
+                    <div key={j.id} className="rounded-lg border border-eif-cream-mid p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-eif-dark">
+                            {new Date(j.data + 'T12:00:00').toLocaleDateString('pt-BR')} · {j.tipo}
+                          </p>
+                          <p className="text-xs text-eif-text mt-0.5 line-clamp-2">{j.descricao}</p>
+                          {j.gestorResposta && (
+                            <p className="text-xs text-eif-text mt-1 italic">Resposta: {j.gestorResposta}</p>
+                          )}
+                        </div>
+                        <span className={`text-xs rounded-full px-2 py-0.5 font-medium shrink-0 ${
+                          j.status === 'Aprovada' ? 'bg-green-100 text-green-700' :
+                          j.status === 'Recusada' ? 'bg-red-100 text-red-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>
+                          {j.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* New justification form */}
+              <form onSubmit={handleEnviarJustificativa} className="flex flex-col gap-3">
+                <p className="text-xs font-semibold text-eif-dark">Nova justificativa</p>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-eif-text">Data</label>
+                  <input
+                    type="date"
+                    value={justData}
+                    onChange={e => setJustData(e.target.value)}
+                    min={`${ano}-${String(mes).padStart(2, '0')}-01`}
+                    max={`${ano}-${String(mes).padStart(2, '0')}-31`}
+                    className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white focus:outline-none focus:ring-2 focus:ring-eif-red/30"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-eif-text">Tipo</label>
+                  <select
+                    value={justTipo}
+                    onChange={e => setJustTipo(e.target.value)}
+                    className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white focus:outline-none focus:ring-2 focus:ring-eif-red/30"
+                  >
+                    {TIPOS_JUSTIFICATIVA.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-eif-text">Descrição</label>
+                  <textarea
+                    value={justDesc}
+                    onChange={e => setJustDesc(e.target.value)}
+                    rows={3}
+                    placeholder="Descreva o motivo da ausência…"
+                    className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white resize-none focus:outline-none focus:ring-2 focus:ring-eif-red/30"
+                    required
+                  />
+                </div>
+                {justErro && (
+                  <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{justErro}</p>
+                )}
+                {justOk && (
+                  <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">Justificativa enviada com sucesso!</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={justLoading}
+                  className="bg-eif-red text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-60"
+                >
+                  {justLoading ? 'Enviando…' : 'Enviar Justificativa'}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );

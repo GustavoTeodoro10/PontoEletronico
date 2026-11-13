@@ -8,7 +8,7 @@ import { formatCPF, cleanCPF } from '@/lib/cpf';
 interface Props {
   role: string;
   registrosHoje: Registro[];
-  justificativasPendentes: Justificativa[];
+  justificativas: Justificativa[];
   assinaturasPendentes: AssinaturaEspelho[];
   funcionarios: Funcionario[];
   unidades: Unidade[];
@@ -21,11 +21,16 @@ type Tab = 'hoje' | 'justificativas' | 'funcionarios' | 'assinaturas' | 'cobertu
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 export default function AdminClient({
-  role, registrosHoje, justificativasPendentes, assinaturasPendentes,
+  role, registrosHoje, justificativas: initialJustificativas, assinaturasPendentes,
   funcionarios, unidades, totalFuncionarios, hoje,
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('hoje');
+
+  // Justificativas
+  const [justificativas, setJustificativas] = useState<Justificativa[]>(initialJustificativas);
+  const [justRespostas, setJustRespostas] = useState<Record<string, string>>({});
+  const [justLoading, setJustLoading] = useState('');
 
   // Reset senha
   const [resettingCpf, setResettingCpf] = useState('');
@@ -38,6 +43,21 @@ export default function AdminClient({
   const [cobFim, setCobFim] = useState('');
   const [cobLoading, setCobLoading] = useState(false);
   const [cobMsg, setCobMsg] = useState('');
+
+  async function handleJustificativa(id: string, status: 'Aprovada' | 'Recusada') {
+    setJustLoading(id);
+    try {
+      const res = await fetch(`/api/admin/justificativa/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, gestorResposta: justRespostas[id] ?? '' }),
+      });
+      if (!res.ok) return;
+      setJustificativas(prev => prev.map(j => j.id === id ? { ...j, status, gestorResposta: justRespostas[id] ?? '' } : j));
+    } finally {
+      setJustLoading('');
+    }
+  }
 
   // Assinatura admin
   const [assinandoId, setAssinandoId] = useState('');
@@ -158,7 +178,7 @@ export default function AdminClient({
           {(['hoje', 'justificativas', 'assinaturas', 'funcionarios', 'coberturas', 'cadastrar'] as Tab[]).map(t => (
             <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
               {t === 'hoje'          ? `Hoje (${registrosHoje.length})`
-                : t === 'justificativas' ? `Justif. (${justificativasPendentes.length})`
+                : t === 'justificativas' ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
                 : t === 'assinaturas'    ? `Assin. (${assinaturasPendentes.length})`
                 : t === 'funcionarios'   ? 'Funcionários'
                 : t === 'coberturas'     ? 'Coberturas'
@@ -199,22 +219,58 @@ export default function AdminClient({
         {/* Tab: Justificativas */}
         {tab === 'justificativas' && (
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            {justificativasPendentes.length === 0 ? (
-              <p className="text-center text-eif-text text-sm p-6">Nenhuma justificativa pendente.</p>
+            {justificativas.length === 0 ? (
+              <p className="text-center text-eif-text text-sm p-6">Nenhuma justificativa registrada.</p>
             ) : (
               <div className="divide-y divide-eif-cream-mid">
-                {justificativasPendentes.map(j => (
-                  <div key={j.id} className="px-4 py-3">
+                {justificativas.map(j => (
+                  <div key={j.id} className="px-4 py-4 flex flex-col gap-2">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-eif-dark">{j.nome}</p>
-                        <p className="text-xs text-eif-text">{j.data} · {j.tipo}</p>
+                        <p className="text-xs text-eif-text">
+                          {new Date(j.data + 'T12:00:00').toLocaleDateString('pt-BR')} · {j.tipo}
+                        </p>
                         <p className="text-sm text-eif-text mt-1">{j.descricao}</p>
+                        {j.gestorResposta && (
+                          <p className="text-xs text-eif-text italic mt-1">Resposta: {j.gestorResposta}</p>
+                        )}
                       </div>
-                      <span className="shrink-0 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
-                        Pendente
+                      <span className={`shrink-0 text-xs rounded-full px-2 py-0.5 font-medium ${
+                        j.status === 'Aprovada' ? 'bg-green-100 text-green-700' :
+                        j.status === 'Recusada' ? 'bg-red-100 text-red-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {j.status}
                       </span>
                     </div>
+                    {j.status === 'Pendente' && (
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="text"
+                          placeholder="Resposta do gestor (opcional)"
+                          value={justRespostas[j.id] ?? ''}
+                          onChange={e => setJustRespostas(prev => ({ ...prev, [j.id]: e.target.value }))}
+                          className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-xs text-eif-dark bg-white focus:outline-none focus:ring-2 focus:ring-eif-red/30"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleJustificativa(j.id, 'Aprovada')}
+                            disabled={justLoading === j.id}
+                            className="flex-1 bg-green-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-60"
+                          >
+                            {justLoading === j.id ? '…' : 'Aprovar'}
+                          </button>
+                          <button
+                            onClick={() => handleJustificativa(j.id, 'Recusada')}
+                            disabled={justLoading === j.id}
+                            className="flex-1 bg-red-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-60"
+                          >
+                            {justLoading === j.id ? '…' : 'Recusar'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

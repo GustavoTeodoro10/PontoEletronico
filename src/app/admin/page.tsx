@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import {
   getAllRegistrosByDate,
-  getJustificativasPendentes,
+  getAllJustificativas,
   getAllFuncionarios,
   getAllUnidades,
   getAllAssinaturasPendentes,
@@ -20,10 +20,10 @@ export default async function AdminPage() {
 
   const hoje = new Date().toISOString().slice(0, 10);
 
-  const [registrosHoje, justificativasPendentes, funcionarios, unidades, assinaturasPendentes] =
+  const [registrosHoje, justificativas, funcionarios, unidades, assinaturasPendentes] =
     await Promise.all([
       getAllRegistrosByDate(hoje),
-      getJustificativasPendentes(),
+      getAllJustificativas(),
       getAllFuncionarios(),
       getAllUnidades(),
       role === 'admin' ? getAllAssinaturasPendentes() : Promise.resolve([]),
@@ -33,7 +33,7 @@ export default async function AdminPage() {
     <AdminClient
       role={role}
       registrosHoje={registrosHoje}
-      justificativasPendentes={justificativasPendentes}
+      justificativas={justificativas}
       assinaturasPendentes={assinaturasPendentes}
       funcionarios={funcionarios}
       unidades={unidades}

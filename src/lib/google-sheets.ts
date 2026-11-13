@@ -281,15 +281,45 @@ export async function appendJustificativa(j: Omit<Justificativa, 'id'>): Promise
   ]);
 }
 
+function rowToJustificativa(r: string[]): Justificativa {
+  return {
+    id: r[0], cpf: r[1], nome: r[2], data: r[3], tipo: r[4],
+    descricao: r[5], status: (r[6] || 'Pendente') as Justificativa['status'],
+    gestorResposta: r[7] || '', createdAt: r[8] || '',
+  };
+}
+
 export async function getJustificativasPendentes(): Promise<Justificativa[]> {
   const rows = await getRows(TABS.justificativas);
+  return rows.filter(r => r[0] && r[6] === 'Pendente').map(rowToJustificativa);
+}
+
+export async function getAllJustificativas(): Promise<Justificativa[]> {
+  const rows = await getRows(TABS.justificativas);
+  return rows.filter(r => r[0]).map(rowToJustificativa)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function getJustificativasByMonth(cpf: string, ano: number, mes: number): Promise<Justificativa[]> {
+  const rows = await getRows(TABS.justificativas);
+  const prefix = `${ano}-${String(mes).padStart(2, '0')}`;
   return rows
-    .filter(r => r[6] === 'Pendente')
-    .map(r => ({
-      id: r[0], cpf: r[1], nome: r[2], data: r[3], tipo: r[4],
-      descricao: r[5], status: r[6] as Justificativa['status'],
-      gestorResposta: r[7], createdAt: r[8],
-    }));
+    .filter(r => r[0] && r[1]?.replace(/\D/g, '') === cpf.replace(/\D/g, '') && r[3]?.startsWith(prefix))
+    .map(rowToJustificativa);
+}
+
+export async function updateJustificativaStatus(
+  id: string,
+  status: 'Aprovada' | 'Recusada',
+  gestorResposta: string,
+): Promise<void> {
+  const rows = await getRows(TABS.justificativas);
+  const idx = rows.findIndex(r => r[0] === id);
+  if (idx === -1) throw new Error('Justificativa não encontrada');
+  const row = [...rows[idx]];
+  row[6] = status;
+  row[7] = gestorResposta;
+  await updateRow(TABS.justificativas, idx, row);
 }
 
 // ── Coberturas ─────────────────────────────────────────────────────────────

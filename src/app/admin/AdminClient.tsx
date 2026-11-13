@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { Registro, Justificativa, Atestado, Funcionario, Unidade, AssinaturaEspelho } from '@/types';
 import { formatCPF, cleanCPF } from '@/lib/cpf';
 import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
+import EIF_LOGO from '@/lib/eif-logo';
 
 interface Props {
   role: string;
@@ -634,25 +635,32 @@ export default function AdminClient({
               return (
                 <>
                   {/* Cabeçalho do funcionário */}
-                  <div className="bg-white rounded-2xl shadow-sm px-4 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-eif-dark">{relData.funcionario?.nome ?? relCpf}</p>
-                        <p className="text-xs text-eif-text">
-                          {relData.funcionario?.cargo ?? '—'} · {unidades.find(u => u.id === relData.funcionario?.unidadeId)?.nome ?? ''} · {MESES[relMes - 1]} {relAno}
-                        </p>
+                  <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                    {/* Banda vermelha com logo e título */}
+                    <div className="bg-eif-red px-4 py-3 flex items-center gap-3">
+                      <img src={EIF_LOGO} alt="EIF" className="h-9 w-9 rounded-lg bg-white/10 object-contain p-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-semibold text-sm leading-tight">E.I.F Alimentos</p>
+                        <p className="text-white/70 text-[10px] uppercase tracking-wider">Sistema de Ponto Eletrônico</p>
                       </div>
                       <button
                         onClick={handleDownloadPDF}
-                        className="shrink-0 flex items-center gap-1.5 bg-eif-red text-white rounded-lg px-3 py-2 text-xs font-semibold"
+                        className="shrink-0 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white rounded-lg px-3 py-2 text-xs font-semibold transition"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                           <polyline points="7 10 12 15 17 10"/>
                           <line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
                         PDF
                       </button>
+                    </div>
+                    {/* Info do funcionário */}
+                    <div className="px-4 py-3">
+                      <p className="text-sm font-semibold text-eif-dark">{relData.funcionario?.nome ?? relCpf}</p>
+                      <p className="text-xs text-eif-text mt-0.5">
+                        {relData.funcionario?.cargo ?? '—'} · {unidades.find(u => u.id === relData.funcionario?.unidadeId)?.nome ?? ''} · {MESES[relMes - 1]} {relAno}
+                      </p>
                     </div>
                   </div>
 

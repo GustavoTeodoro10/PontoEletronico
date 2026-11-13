@@ -553,6 +553,14 @@ export async function updateDispositivoCounter(id: string, counter: number): Pro
   await updateRow(TABS.dispositivos, idx, row);
 }
 
+export async function getAllRegistrosByMonth(year: number, month: number): Promise<Registro[]> {
+  const rows = await getRows(TABS.registros);
+  const prefix = `${year}-${String(month).padStart(2, '0')}`;
+  return rows
+    .filter(r => r[0] && r[6]?.startsWith(prefix))
+    .map(rowToRegistro);
+}
+
 export async function getRegistrosRecentes(dias: number): Promise<Registro[]> {
   const rows = await getRows(TABS.registros);
   const limite = new Date();

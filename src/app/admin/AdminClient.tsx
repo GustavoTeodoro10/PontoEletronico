@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Registro, Justificativa, Atestado, Funcionario, Unidade, AssinaturaEspelho, Alerta } from '@/types';
+import type { Registro, Justificativa, Atestado, Funcionario, Unidade, AssinaturaEspelho, Alerta, BancoHorasMes } from '@/types';
 import { formatCPF, cleanCPF } from '@/lib/cpf';
 import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
 import EIF_LOGO from '@/lib/eif-logo';
 
 interface Props {
   role: string;
+  gestorUnidadeId?: string;
   registrosHoje: Registro[];
   justificativas: Justificativa[];
   atestados: Atestado[];
@@ -19,7 +20,17 @@ interface Props {
   hoje: string;
 }
 
-type Tab = 'hoje' | 'alertas' | 'justificativas' | 'atestados' | 'assinaturas' | 'relatorio' | 'funcionarios' | 'coberturas' | 'cadastrar' | 'unidades';
+interface RelUniEntry {
+  funcionario: { cpf: string; nome: string; matricula: string; cargo: string };
+  banco: BancoHorasMes;
+}
+
+interface RelUniResult {
+  unidade: { id: string; nome: string };
+  funcionarios: RelUniEntry[];
+}
+
+type Tab = 'hoje' | 'alertas' | 'justificativas' | 'atestados' | 'assinaturas' | 'relatorio' | 'relatorio_unidade' | 'funcionarios' | 'coberturas' | 'cadastrar' | 'unidades';
 
 interface RelatorioData {
   registros: Registro[];
@@ -30,7 +41,7 @@ interface RelatorioData {
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 export default function AdminClient({
-  role, registrosHoje, justificativas: initialJustificativas, atestados: initialAtestados,
+  role, gestorUnidadeId, registrosHoje, justificativas: initialJustificativas, atestados: initialAtestados,
   assinaturasPendentes, funcionarios, unidades, totalFuncionarios, hoje,
 }: Props) {
   const router = useRouter();
@@ -183,6 +194,28 @@ export default function AdminClient({
   );
   const alertasCount = alertasData?.length ?? 0;
 
+  // Relatório por unidade
+  const [relUniUnidade, setRelUniUnidade] = useState(gestorUnidadeId ?? '');
+  const [relUniAno, setRelUniAno] = useState(() => new Date().getFullYear());
+  const [relUniMes, setRelUniMes] = useState(() => new Date().getMonth() + 1);
+  const [relUniData, setRelUniData] = useState<RelUniResult | null>(null);
+  const [relUniLoading, setRelUniLoading] = useState(false);
+  const [relUniErr, setRelUniErr] = useState('');
+
+  async function handleBuscarRelatorioUnidade() {
+    const targetUnidade = gestorUnidadeId ?? relUniUnidade;
+    if (!targetUnidade) return;
+    setRelUniLoading(true); setRelUniErr(''); setRelUniData(null);
+    try {
+      const res = await fetch(`/api/admin/relatorio-unidade?unidadeId=${encodeURIComponent(targetUnidade)}&ano=${relUniAno}&mes=${relUniMes}`);
+      const json = await res.json();
+      if (!res.ok) { setRelUniErr(json.error || 'Erro ao buscar.'); return; }
+      setRelUniData(json);
+    } finally {
+      setRelUniLoading(false);
+    }
+  }
+
   async function handleJustificativa(id: string, status: 'Aprovada' | 'Recusada') {
     setJustLoading(id);
     try {
@@ -220,7 +253,7 @@ export default function AdminClient({
   const [cadNome,     setCadNome]     = useState('');
   const [cadCpf,      setCadCpf]      = useState('');
   const [cadCargo,    setCadCargo]    = useState('');
-  const [cadUnidade,  setCadUnidade]  = useState('');
+  const [cadUnidade,  setCadUnidade]  = useState(gestorUnidadeId ?? '');
   const [cadRole,     setCadRole]     = useState<'funcionario' | 'gestor'>('funcionario');
   const [cadLoading,  setCadLoading]  = useState(false);
   const [cadErr,      setCadErr]      = useState('');
@@ -328,10 +361,15 @@ export default function AdminClient({
         </div>
 
         {/* Tabs */}
+        {(() => {
+          const tabs: Tab[] = role === 'gestor'
+            ? ['hoje', 'alertas', 'justificativas', 'atestados', 'relatorio', 'relatorio_unidade', 'funcionarios', 'coberturas', 'cadastrar']
+            : ['hoje', 'alertas', 'justificativas', 'atestados', 'assinaturas', 'relatorio', 'relatorio_unidade', 'funcionarios', 'coberturas', 'unidades', 'cadastrar'];
+          return (
         <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
-          {(['hoje', 'alertas', 'justificativas', 'atestados', 'assinaturas', 'relatorio', 'funcionarios', 'coberturas', 'unidades', 'cadastrar'] as Tab[]).map(t => (
+          {tabs.map(t => (
             <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
-              {t === 'hoje'          ? `Hoje (${registrosHoje.length})`
+              {t === 'hoje'             ? `Hoje (${registrosHoje.length})`
                 : t === 'alertas'        ? (
                     <span className="flex items-center gap-1">
                       Alertas
@@ -342,17 +380,20 @@ export default function AdminClient({
                       )}
                     </span>
                   )
-                : t === 'justificativas' ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
-                : t === 'atestados'      ? `Atestos (${atestados.filter(a => a.status === 'Pendente').length})`
-                : t === 'assinaturas'    ? `Assin. (${assinaturasPendentes.length})`
-                : t === 'relatorio'      ? 'Relatório'
-                : t === 'funcionarios'   ? 'Funcionários'
-                : t === 'coberturas'     ? 'Coberturas'
-                : t === 'unidades'       ? 'Unidades'
+                : t === 'justificativas'   ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
+                : t === 'atestados'        ? `Atestos (${atestados.filter(a => a.status === 'Pendente').length})`
+                : t === 'assinaturas'      ? `Assin. (${assinaturasPendentes.length})`
+                : t === 'relatorio'        ? 'Relatório'
+                : t === 'relatorio_unidade'? 'Rel. Unidade'
+                : t === 'funcionarios'     ? 'Funcionários'
+                : t === 'coberturas'       ? 'Coberturas'
+                : t === 'unidades'         ? 'Unidades'
                 : '+ Cadastrar'}
             </TabBtn>
           ))}
         </div>
+          );
+        })()}
 
         {/* Tab: Hoje */}
         {tab === 'hoje' && (
@@ -697,21 +738,24 @@ export default function AdminClient({
                   value={cadUnidade}
                   onChange={e => setCadUnidade(e.target.value)}
                   required
-                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                  disabled={!!gestorUnidadeId}
+                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40 disabled:opacity-70 disabled:bg-eif-cream"
                 >
                   <option value="">Unidade de trabalho…</option>
-                  {unidades.map(u => (
+                  {(gestorUnidadeId ? unidades.filter(u => u.id === gestorUnidadeId) : unidades).map(u => (
                     <option key={u.id} value={u.id}>{u.nome}</option>
                   ))}
                 </select>
-                <select
-                  value={cadRole}
-                  onChange={e => setCadRole(e.target.value as 'funcionario' | 'gestor')}
-                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
-                >
-                  <option value="funcionario">Funcionário</option>
-                  <option value="gestor">Gestor</option>
-                </select>
+                {!gestorUnidadeId && (
+                  <select
+                    value={cadRole}
+                    onChange={e => setCadRole(e.target.value as 'funcionario' | 'gestor')}
+                    className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                  >
+                    <option value="funcionario">Funcionário</option>
+                    <option value="gestor">Gestor</option>
+                  </select>
+                )}
 
                 {cadErr && (
                   <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{cadErr}</p>
@@ -734,6 +778,114 @@ export default function AdminClient({
                 </button>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* Tab: Relatório por Unidade */}
+        {tab === 'relatorio_unidade' && (
+          <div className="flex flex-col gap-4">
+            <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
+              <p className="text-sm font-semibold text-eif-dark">Relatório por Unidade</p>
+              {!gestorUnidadeId && (
+                <select
+                  value={relUniUnidade}
+                  onChange={e => { setRelUniUnidade(e.target.value); setRelUniData(null); }}
+                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                >
+                  <option value="">Selecionar unidade…</option>
+                  {unidades.map(u => (
+                    <option key={u.id} value={u.id}>{u.nome}</option>
+                  ))}
+                </select>
+              )}
+              {gestorUnidadeId && (
+                <p className="text-sm text-eif-text">
+                  {unidades.find(u => u.id === gestorUnidadeId)?.nome ?? gestorUnidadeId}
+                </p>
+              )}
+              <div className="flex gap-2">
+                <select
+                  value={relUniMes}
+                  onChange={e => { setRelUniMes(Number(e.target.value)); setRelUniData(null); }}
+                  className="flex-1 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                >
+                  {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+                <select
+                  value={relUniAno}
+                  onChange={e => { setRelUniAno(Number(e.target.value)); setRelUniData(null); }}
+                  className="w-24 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                >
+                  {[new Date().getFullYear(), new Date().getFullYear() - 1].map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={handleBuscarRelatorioUnidade}
+                disabled={relUniLoading || !(gestorUnidadeId ?? relUniUnidade)}
+                className="bg-eif-red text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
+              >
+                {relUniLoading ? 'Buscando…' : 'Gerar Relatório'}
+              </button>
+              {relUniErr && (
+                <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{relUniErr}</p>
+              )}
+            </div>
+
+            {relUniData && (
+              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-eif-cream-mid">
+                  <p className="text-sm font-semibold text-eif-dark">{relUniData.unidade.nome}</p>
+                  <p className="text-xs text-eif-text">{MESES[relUniMes - 1]} {relUniAno} · {relUniData.funcionarios.length} funcionário(s)</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-eif-cream">
+                      <tr>
+                        <th className="text-left px-4 py-2 text-eif-text font-semibold">Nome</th>
+                        <th className="text-left px-3 py-2 text-eif-text font-semibold">Cargo</th>
+                        <th className="text-right px-3 py-2 text-eif-text font-semibold">Trabalhado</th>
+                        <th className="text-right px-3 py-2 text-eif-text font-semibold">Esperado</th>
+                        <th className="text-right px-4 py-2 text-eif-text font-semibold">Saldo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-eif-cream-mid">
+                      {relUniData.funcionarios.map(({ funcionario: f, banco }) => (
+                        <tr key={f.cpf}>
+                          <td className="px-4 py-2.5 font-medium text-eif-dark">{f.nome}</td>
+                          <td className="px-3 py-2.5 text-eif-text">{f.cargo}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-eif-dark">{formatHoras(banco.totalTrabalhado)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-eif-text">{formatHoras(banco.totalEsperado)}</td>
+                          <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${banco.saldo >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {banco.saldo >= 0 ? '+' : ''}{formatHoras(banco.saldo)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-eif-cream border-t-2 border-eif-cream-dark">
+                      <tr>
+                        <td colSpan={2} className="px-4 py-2.5 text-xs font-bold text-eif-dark">Total</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-bold text-eif-dark">
+                          {formatHoras(relUniData.funcionarios.reduce((s, { banco }) => s + banco.totalTrabalhado, 0))}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-eif-text">
+                          {formatHoras(relUniData.funcionarios.reduce((s, { banco }) => s + banco.totalEsperado, 0))}
+                        </td>
+                        <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${
+                          relUniData.funcionarios.reduce((s, { banco }) => s + banco.saldo, 0) >= 0 ? 'text-green-600' : 'text-red-500'
+                        }`}>
+                          {(() => {
+                            const total = relUniData.funcionarios.reduce((s, { banco }) => s + banco.saldo, 0);
+                            return `${total >= 0 ? '+' : ''}${formatHoras(total)}`;
+                          })()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

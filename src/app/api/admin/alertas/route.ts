@@ -9,6 +9,9 @@ export async function GET() {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 
+  const isGestor = session.user.role === 'gestor';
+  const gestorUnidadeId = session.user.unidadeId;
+
   const registros = await getRegistrosRecentes(14);
   const hoje = new Date().toISOString().slice(0, 10);
   const alertas: Alerta[] = [];
@@ -16,6 +19,7 @@ export async function GET() {
   // 1. Fora do raio
   for (const r of registros) {
     if (r.dentroDoRaio === false) {
+      if (isGestor && r.unidadeId !== gestorUnidadeId) continue;
       alertas.push({
         id: r.id,
         tipo: 'fora_do_raio',
@@ -31,6 +35,7 @@ export async function GET() {
   // 2. Ponto incompleto — dias passados com número ímpar de batidas
   const byEmpregadoByDia: Record<string, Record<string, Registro[]>> = {};
   for (const r of registros) {
+    if (isGestor && r.unidadeId !== gestorUnidadeId) continue;
     const dia = r.dataHora.slice(0, 10);
     if (dia >= hoje) continue;
     if (!byEmpregadoByDia[r.cpf]) byEmpregadoByDia[r.cpf] = {};

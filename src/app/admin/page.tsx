@@ -16,12 +16,13 @@ export default async function AdminPage() {
   const session = await auth();
   if (!session?.user) redirect('/login');
 
-  const { role } = session.user;
+  const { role, unidadeId: gestorUnidadeId } = session.user;
   if (role !== 'admin' && role !== 'gestor') redirect('/dashboard');
 
+  const isGestor = role === 'gestor';
   const hoje = new Date().toISOString().slice(0, 10);
 
-  const [registrosHoje, justificativas, atestados, funcionarios, unidades, assinaturasPendentes] =
+  const [allRegistrosHoje, allJustificativas, allAtestados, allFuncionarios, unidades, assinaturasPendentes] =
     await Promise.all([
       getAllRegistrosByDate(hoje),
       getAllJustificativas(),
@@ -31,9 +32,31 @@ export default async function AdminPage() {
       role === 'admin' ? getAllAssinaturasPendentes() : Promise.resolve([]),
     ]);
 
+  // For gestores: filter everything to their unit
+  const cpfsUnidade = isGestor
+    ? new Set(allFuncionarios.filter(f => f.unidadeId === gestorUnidadeId).map(f => f.cpf))
+    : null;
+
+  const registrosHoje = isGestor
+    ? allRegistrosHoje.filter(r => r.unidadeId === gestorUnidadeId)
+    : allRegistrosHoje;
+
+  const funcionarios = isGestor
+    ? allFuncionarios.filter(f => f.unidadeId === gestorUnidadeId)
+    : allFuncionarios;
+
+  const justificativas = isGestor
+    ? allJustificativas.filter(j => cpfsUnidade!.has(j.cpf))
+    : allJustificativas;
+
+  const atestados = isGestor
+    ? allAtestados.filter(a => cpfsUnidade!.has(a.cpf))
+    : allAtestados;
+
   return (
     <AdminClient
       role={role}
+      gestorUnidadeId={isGestor ? gestorUnidadeId : undefined}
       registrosHoje={registrosHoje}
       justificativas={justificativas}
       atestados={atestados}

@@ -4,7 +4,6 @@ import { useState, useRef } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
-import TeoCodeFooter from '@/components/TeoCodeFooter';
 import EIF_LOGO from '@/lib/eif-logo';
 
 export default function LoginContent() {
@@ -139,7 +138,6 @@ export default function LoginContent() {
           </p>
         </form>
 
-        <TeoCodeFooter />
       </div>
     </main>
   );

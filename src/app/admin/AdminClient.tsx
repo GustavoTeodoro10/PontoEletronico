@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Registro, Justificativa, Funcionario, Unidade, AssinaturaEspelho } from '@/types';
+import { formatCPF, cleanCPF } from '@/lib/cpf';
 
 interface Props {
   role: string;
@@ -15,7 +16,7 @@ interface Props {
   hoje: string;
 }
 
-type Tab = 'hoje' | 'justificativas' | 'funcionarios' | 'assinaturas' | 'coberturas';
+type Tab = 'hoje' | 'justificativas' | 'funcionarios' | 'assinaturas' | 'coberturas' | 'cadastrar';
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -40,6 +41,39 @@ export default function AdminClient({
 
   // Assinatura admin
   const [assinandoId, setAssinandoId] = useState('');
+
+  // Cadastro de funcionário
+  const [cadNome,     setCadNome]     = useState('');
+  const [cadCpf,      setCadCpf]      = useState('');
+  const [cadCargo,    setCadCargo]    = useState('');
+  const [cadUnidade,  setCadUnidade]  = useState('');
+  const [cadRole,     setCadRole]     = useState<'funcionario' | 'gestor'>('funcionario');
+  const [cadLoading,  setCadLoading]  = useState(false);
+  const [cadErr,      setCadErr]      = useState('');
+  const [cadResult,   setCadResult]   = useState<{ matricula: string; senhaTemporaria: string } | null>(null);
+
+  function handleCadCpfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = cleanCPF(e.target.value);
+    if (digits.length <= 11) setCadCpf(formatCPF(digits));
+  }
+
+  async function handleCadastrar(e: React.FormEvent) {
+    e.preventDefault();
+    setCadLoading(true);
+    setCadErr('');
+    setCadResult(null);
+    const res = await fetch('/api/admin/cadastrar-funcionario', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome: cadNome, cpf: cadCpf, cargo: cadCargo, unidadeId: cadUnidade, role: cadRole }),
+    });
+    const data = await res.json();
+    setCadLoading(false);
+    if (!res.ok) { setCadErr(data.error || 'Erro ao cadastrar.'); return; }
+    setCadResult(data);
+    setCadNome(''); setCadCpf(''); setCadCargo(''); setCadUnidade(''); setCadRole('funcionario');
+    router.refresh();
+  }
 
   const presentes = new Set(registrosHoje.map(r => r.cpf)).size;
   const foraRaio  = registrosHoje.filter(r => r.dentroDoRaio === false).length;
@@ -121,13 +155,14 @@ export default function AdminClient({
 
         {/* Tabs */}
         <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
-          {(['hoje', 'justificativas', 'assinaturas', 'funcionarios', 'coberturas'] as Tab[]).map(t => (
+          {(['hoje', 'justificativas', 'assinaturas', 'funcionarios', 'coberturas', 'cadastrar'] as Tab[]).map(t => (
             <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
-              {t === 'hoje' ? `Hoje (${registrosHoje.length})`
+              {t === 'hoje'          ? `Hoje (${registrosHoje.length})`
                 : t === 'justificativas' ? `Justif. (${justificativasPendentes.length})`
-                : t === 'assinaturas' ? `Assin. (${assinaturasPendentes.length})`
-                : t === 'funcionarios' ? 'Funcionários'
-                : 'Coberturas'}
+                : t === 'assinaturas'    ? `Assin. (${assinaturasPendentes.length})`
+                : t === 'funcionarios'   ? 'Funcionários'
+                : t === 'coberturas'     ? 'Coberturas'
+                : '+ Cadastrar'}
             </TabBtn>
           ))}
         </div>
@@ -243,6 +278,96 @@ export default function AdminClient({
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Cadastrar */}
+        {tab === 'cadastrar' && (
+          <div className="flex flex-col gap-4">
+            {cadResult && (
+              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-4">
+                <p className="text-sm font-semibold text-green-700 mb-2">Funcionário cadastrado!</p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs text-green-700">Matrícula: <strong>{cadResult.matricula}</strong></p>
+                  <p className="text-xs text-green-700">
+                    Senha temporária:{' '}
+                    <strong className="font-mono tracking-wider">{cadResult.senhaTemporaria}</strong>
+                    <span className="text-green-500 ml-1">(últimos 6 dígitos do CPF)</span>
+                  </p>
+                  <p className="text-xs text-green-500 mt-1">O funcionário deve trocar a senha no primeiro acesso.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <p className="text-sm font-semibold text-eif-dark mb-4">Novo Funcionário</p>
+              <form onSubmit={handleCadastrar} className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  placeholder="Nome completo"
+                  value={cadNome}
+                  onChange={e => setCadNome(e.target.value)}
+                  required
+                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="CPF (000.000.000-00)"
+                  value={cadCpf}
+                  onChange={handleCadCpfChange}
+                  required
+                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                />
+                <input
+                  type="text"
+                  placeholder="Cargo (ex: Cozinheiro, Auxiliar)"
+                  value={cadCargo}
+                  onChange={e => setCadCargo(e.target.value)}
+                  required
+                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                />
+                <select
+                  value={cadUnidade}
+                  onChange={e => setCadUnidade(e.target.value)}
+                  required
+                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                >
+                  <option value="">Unidade de trabalho…</option>
+                  {unidades.map(u => (
+                    <option key={u.id} value={u.id}>{u.nome}</option>
+                  ))}
+                </select>
+                <select
+                  value={cadRole}
+                  onChange={e => setCadRole(e.target.value as 'funcionario' | 'gestor')}
+                  className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                >
+                  <option value="funcionario">Funcionário</option>
+                  <option value="gestor">Gestor</option>
+                </select>
+
+                {cadErr && (
+                  <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{cadErr}</p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={cadLoading}
+                  className="bg-eif-red text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {cadLoading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Cadastrando…
+                    </>
+                  ) : 'Cadastrar Funcionário'}
+                </button>
+              </form>
             </div>
           </div>
         )}

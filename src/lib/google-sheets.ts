@@ -95,6 +95,46 @@ export async function getAllFuncionarios(): Promise<Funcionario[]> {
   return rows.filter(r => r[0]).map(rowToFuncionario);
 }
 
+export async function createFuncionario(data: {
+  cpf: string;
+  nome: string;
+  cargo: string;
+  unidadeId: string;
+  role: 'funcionario' | 'gestor';
+}): Promise<{ matricula: string; senhaTemporaria: string }> {
+  const rows = await getRows(TABS.funcionarios);
+  if (rows.some(r => r[0]?.replace(/\D/g, '') === data.cpf.replace(/\D/g, ''))) {
+    throw new Error('CPF já cadastrado.');
+  }
+
+  const count = rows.filter(r => r[0]).length;
+  const matricula = String(count + 1).padStart(4, '0');
+
+  const partes = data.nome.trim().split(/\s+/);
+  const primeiroNome = partes[0] || '';
+  const sobrenome = partes.slice(1).join(' ') || '';
+
+  const senhaTemporaria = data.cpf.replace(/\D/g, '').slice(-6);
+  const senhaHash = await bcrypt.hash(senhaTemporaria, 12);
+
+  await appendRow(TABS.funcionarios, [
+    data.cpf,
+    matricula,
+    data.nome.trim(),
+    primeiroNome,
+    sobrenome,
+    data.unidadeId,
+    data.cargo,
+    senhaHash,
+    'TRUE',
+    'TRUE',
+    new Date().toISOString(),
+    data.role,
+  ]);
+
+  return { matricula, senhaTemporaria };
+}
+
 export async function updateFuncionarioSenha(cpf: string, novaHash: string): Promise<void> {
   const rows = await getRows(TABS.funcionarios);
   const idx = rows.findIndex(r => r[0]?.replace(/\D/g, '') === cpf.replace(/\D/g, ''));

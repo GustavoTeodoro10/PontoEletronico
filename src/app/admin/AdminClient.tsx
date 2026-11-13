@@ -113,14 +113,14 @@ export default function AdminClient({
 
       <div className="flex-1 px-4 py-6 max-w-2xl mx-auto w-full flex flex-col gap-6">
         {/* KPIs */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white rounded-2xl shadow-sm flex divide-x divide-eif-cream-mid overflow-hidden">
           <Kpi label="Funcionários" value={totalFuncionarios} />
           <Kpi label="Presentes hoje" value={presentes} accent />
           <Kpi label="Fora do raio" value={foraRaio} warn={foraRaio > 0} />
         </div>
 
         {/* Tabs */}
-        <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm">
+        <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
           {(['hoje', 'justificativas', 'assinaturas', 'funcionarios', 'coberturas'] as Tab[]).map(t => (
             <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
               {t === 'hoje' ? `Hoje (${registrosHoje.length})`
@@ -302,11 +302,11 @@ export default function AdminClient({
 
 function Kpi({ label, value, accent, warn }: { label: string; value: number; accent?: boolean; warn?: boolean }) {
   return (
-    <div className={`rounded-xl shadow-sm p-3 text-center ${accent ? 'bg-eif-red text-white' : 'bg-white'}`}>
-      <p className={`text-xs font-medium uppercase tracking-wide ${accent ? 'text-white/80' : 'text-eif-text'}`}>
+    <div className={`flex-1 px-4 py-4 text-center ${accent ? 'bg-eif-red' : ''}`}>
+      <p className={`text-[10px] font-semibold uppercase tracking-widest ${accent ? 'text-white/70' : 'text-eif-text'}`}>
         {label}
       </p>
-      <p className={`font-bold text-2xl mt-0.5 ${warn ? 'text-amber-500' : accent ? 'text-white' : 'text-eif-dark'}`}>
+      <p className={`font-bold text-3xl mt-1 tabular-nums ${warn ? 'text-eif-amber' : accent ? 'text-white' : 'text-eif-dark'}`}>
         {value}
       </p>
     </div>
@@ -317,8 +317,8 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className={`flex-none px-3 py-3 text-xs font-medium whitespace-nowrap transition ${
-        active ? 'bg-eif-red text-white' : 'text-eif-text hover:bg-eif-cream'
+      className={`flex-none px-4 py-3 text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
+        active ? 'border-eif-red text-eif-red' : 'border-transparent text-eif-text hover:text-eif-dark'
       }`}
     >
       {children}

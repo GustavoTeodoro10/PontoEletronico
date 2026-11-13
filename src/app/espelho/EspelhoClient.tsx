@@ -99,18 +99,18 @@ export default function EspelhoClient({ nome, matricula, registros, ano, mes, as
         </div>
 
         {/* Summary + Banco de Horas */}
-        <div className="bg-white rounded-xl shadow-sm px-4 py-3 grid grid-cols-3 gap-2">
-          <div className="text-center">
-            <p className="text-xs text-eif-text uppercase tracking-wide">Dias</p>
-            <p className="font-bold text-eif-dark text-xl">{days.length}</p>
+        <div className="bg-white rounded-xl shadow-sm flex divide-x divide-eif-cream-mid overflow-hidden">
+          <div className="flex-1 px-3 py-4 text-center">
+            <p className="text-[10px] font-semibold text-eif-text uppercase tracking-widest">Dias</p>
+            <p className="font-bold text-eif-dark text-2xl mt-1 tabular-nums">{days.length}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-eif-text uppercase tracking-wide">Trabalhado</p>
-            <p className="font-bold text-eif-dark text-xl">{formatHoras(banco.totalTrabalhado)}</p>
+          <div className="flex-1 px-3 py-4 text-center">
+            <p className="text-[10px] font-semibold text-eif-text uppercase tracking-widest">Trabalhado</p>
+            <p className="font-bold text-eif-dark text-2xl mt-1 tabular-nums">{formatHoras(banco.totalTrabalhado)}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-eif-text uppercase tracking-wide">Banco</p>
-            <p className={`font-bold text-xl ${saldoPos ? 'text-green-600' : 'text-red-500'}`}>
+          <div className="flex-1 px-3 py-4 text-center">
+            <p className="text-[10px] font-semibold text-eif-text uppercase tracking-widest">Banco</p>
+            <p className={`font-bold text-2xl mt-1 tabular-nums ${saldoPos ? 'text-green-600' : 'text-red-500'}`}>
               {formatHoras(banco.saldo)}
             </p>
           </div>

@@ -45,8 +45,8 @@ export default function TrocarSenhaPage() {
     <main className="min-h-dvh flex flex-col items-center justify-center bg-eif-cream px-4 pb-safe">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-eif-amber flex items-center justify-center mx-auto mb-4">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+          <div className="w-16 h-16 rounded-2xl bg-eif-red flex items-center justify-center mx-auto mb-4 shadow-[0_4px_16px_-4px_rgba(191,38,38,0.4)]">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
@@ -57,7 +57,7 @@ export default function TrocarSenhaPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white rounded-2xl shadow-md p-6 flex flex-col gap-4"
+          className="bg-white rounded-2xl shadow-lg border border-eif-cream-mid p-6 flex flex-col gap-4"
         >
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-eif-text uppercase tracking-wide">

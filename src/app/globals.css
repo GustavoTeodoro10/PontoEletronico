@@ -39,3 +39,16 @@ body {
 .pb-safe {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
 }
+
+/* ── Browser surface theming ── */
+::selection {
+  background-color: #BF2626;
+  color: #fff;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d6d0bc; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #BF2626; }
+
+input, textarea, select { caret-color: #BF2626; }

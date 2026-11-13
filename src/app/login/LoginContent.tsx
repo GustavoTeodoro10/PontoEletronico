@@ -70,7 +70,7 @@ export default function LoginContent() {
         {/* Card */}
         <form
           onSubmit={handleSubmit}
-          className="bg-white rounded-2xl shadow-md p-6 flex flex-col gap-4"
+          className="bg-white rounded-2xl shadow-lg border border-eif-cream-mid p-6 flex flex-col gap-4"
         >
           <div className="flex flex-col gap-1">
             <label htmlFor="cpf" className="text-xs font-semibold text-eif-text uppercase tracking-wide">
@@ -116,9 +116,18 @@ export default function LoginContent() {
             type="submit"
             disabled={loading}
             className="bg-eif-red text-white font-semibold text-base rounded-xl py-3 mt-1
-                       active:bg-eif-red-dark transition disabled:opacity-60 disabled:cursor-not-allowed"
+                       active:bg-eif-red-dark transition disabled:opacity-60 disabled:cursor-not-allowed
+                       flex items-center justify-center gap-2"
           >
-            {loading ? 'Entrando…' : 'Entrar'}
+            {loading ? (
+              <>
+                <svg className="animate-spin w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+                Entrando…
+              </>
+            ) : 'Entrar'}
           </button>
 
           <p className="text-center text-xs text-eif-text/60 leading-snug">

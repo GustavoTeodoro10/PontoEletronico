@@ -6,6 +6,8 @@ import { signOut } from 'next-auth/react';
 import SlideButton from '@/components/SlideButton';
 import type { Unidade, Registro, PunchType } from '@/types';
 
+const CICLO: PunchType[] = ['Entrada', 'Saída Almoço', 'Entrada Almoço', 'Saída'];
+
 interface Props {
   funcionario: {
     cpf: string; matricula: string; nome: string; primeiroNome: string;
@@ -28,6 +30,7 @@ export default function DashboardClient({
   const [mensagem,     setMensagem]     = useState('');
   const [erro,         setErro]         = useState('');
   const [hora,         setHora]         = useState('');
+  const cicloIdx = CICLO.indexOf(tipo);
 
   // Live clock
   useEffect(() => {
@@ -126,9 +129,25 @@ export default function DashboardClient({
         </div>
 
         {/* Próximo tipo */}
-        <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
-          <p className="text-xs text-eif-text font-medium uppercase tracking-wide mb-1">Próximo registro</p>
+        <div className="bg-white rounded-2xl shadow-sm p-5 text-center">
+          <p className="text-[10px] text-eif-text font-semibold uppercase tracking-widest mb-4">Próximo Registro</p>
+          {/* Cycle progress indicator */}
+          <div className="flex items-center justify-center mb-4">
+            {CICLO.map((_, i) => (
+              <div key={i} className="flex items-center">
+                <div className={`w-3 h-3 rounded-full flex-shrink-0 transition-all ${
+                  i < cicloIdx  ? 'bg-eif-red' :
+                  i === cicloIdx ? 'bg-eif-red shadow-[0_0_0_4px_rgba(191,38,38,0.2)]' :
+                  'bg-eif-cream-dark'
+                }`} />
+                {i < 3 && (
+                  <div className={`w-8 h-px flex-shrink-0 ${i < cicloIdx ? 'bg-eif-red/50' : 'bg-eif-cream-dark'}`} />
+                )}
+              </div>
+            ))}
+          </div>
           <p className="text-eif-red font-bold text-2xl">{tipo}</p>
+          <p className="text-[10px] text-eif-text/50 mt-1">passo {cicloIdx + 1} de 4</p>
         </div>
 
         {/* Mensagem/Erro */}
@@ -162,8 +181,11 @@ export default function DashboardClient({
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden divide-y divide-eif-cream-mid">
               {registros.map(r => (
                 <div key={r.id} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm font-medium text-eif-dark">{r.tipo}</span>
-                  <span className="text-sm text-eif-text tabular-nums">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2 h-2 rounded-full bg-eif-red flex-shrink-0" />
+                    <span className="text-sm font-medium text-eif-dark">{r.tipo}</span>
+                  </div>
+                  <span className="text-sm text-eif-text tabular-nums font-medium">
                     {new Date(r.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>

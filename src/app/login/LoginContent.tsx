@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
+import TeoCodeFooter from '@/components/TeoCodeFooter';
 
 export default function LoginContent() {
   const router       = useRouter();
@@ -125,6 +126,8 @@ export default function LoginContent() {
             Esqueceu a senha? Fale com o RH.
           </p>
         </form>
+
+        <TeoCodeFooter />
       </div>
     </main>
   );

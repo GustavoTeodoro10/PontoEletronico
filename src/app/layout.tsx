@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Poppins } from 'next/font/google';
 import './globals.css';
+import TeoCodeFooter from '@/components/TeoCodeFooter';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -27,8 +28,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={poppins.variable}>
-      <body className="min-h-dvh bg-eif-cream text-eif-dark antialiased">
-        {children}
+      <body className="min-h-dvh bg-eif-cream text-eif-dark antialiased flex flex-col">
+        <div className="flex-1">{children}</div>
+        <TeoCodeFooter />
       </body>
     </html>
   );

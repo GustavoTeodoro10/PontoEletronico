@@ -1,0 +1,55 @@
+<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="e.I.F Refeições Coletivas">
+  <defs>
+    <clipPath id="innerClip">
+      <circle cx="110" cy="110" r="90"/>
+    </clipPath>
+  </defs>
+
+  <!-- Main red fill -->
+  <circle cx="110" cy="110" r="102" fill="#BF2626"/>
+
+  <!-- Outer white border ring -->
+  <circle cx="110" cy="110" r="100" fill="none" stroke="white" stroke-width="3"/>
+
+  <!-- Inner white border ring -->
+  <circle cx="110" cy="110" r="90" fill="none" stroke="white" stroke-width="1.5"/>
+
+  <!-- Center white banner, clipped to inner circle -->
+  <rect x="10" y="84" width="200" height="52" fill="white" clip-path="url(#innerClip)"/>
+
+  <!-- e.I.F logotype -->
+  <text
+    x="110" y="121"
+    text-anchor="middle"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="40"
+    font-style="italic"
+    font-weight="bold"
+    fill="#BF2626"
+    letter-spacing="3"
+  >e.I.F</text>
+
+  <!-- "REFEIÇÕES" — top arc, left→right through top (sweep=1 → CW on screen) -->
+  <path id="topArc" d="M 37,110 A 73,73 0 0,1 183,110" fill="none"/>
+  <text
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="11"
+    font-weight="bold"
+    fill="white"
+    letter-spacing="4.5"
+  >
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">REFEIÇÕES</textPath>
+  </text>
+
+  <!-- "COLETIVAS" — bottom arc, left→right through bottom (sweep=0 → CCW on screen) -->
+  <path id="bottomArc" d="M 37,110 A 73,73 0 0,0 183,110" fill="none"/>
+  <text
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="11"
+    font-weight="bold"
+    fill="white"
+    letter-spacing="4.5"
+  >
+    <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">COLETIVAS</textPath>
+  </text>
+</svg>

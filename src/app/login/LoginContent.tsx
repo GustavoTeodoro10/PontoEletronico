@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
 import TeoCodeFooter from '@/components/TeoCodeFooter';
+import EIF_LOGO from '@/lib/eif-logo';
 
 export default function LoginContent() {
   const router       = useRouter();
@@ -61,12 +62,9 @@ export default function LoginContent() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <img src="/logo.png" alt="e.I.F Refeições Coletivas" className="w-32 h-32 mb-4 drop-shadow-lg object-contain" />
+          <img src={EIF_LOGO} alt="e.I.F Refeições Coletivas" className="w-32 h-32 mb-4 drop-shadow-lg object-contain" />
           <h1 className="text-eif-dark font-semibold text-xl">EIF Ponto Eletrônico</h1>
           <p className="text-eif-text text-sm mt-1">E.I.F Alimentos</p>
-          <p className="text-eif-text/60 text-xs mt-3 text-center leading-snug">
-            Acesso restrito a funcionários<br />E.I.F Alimentos
-          </p>
         </div>
 
         {/* Card */}
@@ -122,6 +120,10 @@ export default function LoginContent() {
           >
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
+
+          <p className="text-center text-xs text-eif-text/60 leading-snug">
+            Acesso restrito a funcionários<br />E.I.F Alimentos
+          </p>
 
           <p className="text-center text-xs text-eif-text mt-1">
             Esqueceu a senha? Fale com o RH.

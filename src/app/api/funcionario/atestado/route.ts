@@ -35,17 +35,23 @@ export async function POST(req: NextRequest) {
   const cleanCpf = session.user.cpf.replace(/\D/g, '');
   const nomeArquivo = `atestado-${cleanCpf}-${Date.now()}.${ext}`;
 
-  const { fileId } = await uploadFileToDrive(nomeArquivo, file.type, buffer);
+  try {
+    const { fileId } = await uploadFileToDrive(nomeArquivo, file.type, buffer);
 
-  const id = await appendAtestado({
-    cpf: session.user.cpf,
-    nomeOriginal: file.name,
-    nomeArquivo,
-    googleDriveId: fileId,
-    dataEnvio: new Date().toISOString(),
-    dataAtestado,
-    status: 'Pendente',
-  });
+    const id = await appendAtestado({
+      cpf: session.user.cpf,
+      nomeOriginal: file.name,
+      nomeArquivo,
+      googleDriveId: fileId,
+      dataEnvio: new Date().toISOString(),
+      dataAtestado,
+      status: 'Pendente',
+    });
 
-  return NextResponse.json({ ok: true, id });
+    return NextResponse.json({ ok: true, id });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[atestado] upload error:', msg);
+    return NextResponse.json({ error: `Erro ao enviar: ${msg}` }, { status: 500 });
+  }
 }

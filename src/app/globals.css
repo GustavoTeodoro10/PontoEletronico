@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* ── EIF Brand Tokens ── */
+@theme inline {
+  --color-eif-red:        #BF2626;
+  --color-eif-red-dark:   #73061A;
+  --color-eif-red-mid:    #9e1f1f;
+  --color-eif-amber:      #F2B138;
+  --color-eif-amber-light:#fdd87a;
+  --color-eif-cream:      #f4f2e2;
+  --color-eif-cream-mid:  #ece8d4;
+  --color-eif-cream-dark: #d6d0bc;
+  --color-eif-text:       #5c5c5c;
+  --color-eif-dark:       #2a1a1a;
+  --font-sans: var(--font-poppins), system-ui, sans-serif;
+}
+
+:root {
+  --background: #f4f2e2;
+  --foreground: #2a1a1a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* ── Slide button track fill transition ── */
+.slide-fill-transition {
+  transition: width 0.05s linear;
+}
+
+/* ── SVG arc animation ── */
+.countdown-arc {
+  transition: stroke-dashoffset 0.1s linear;
+}
+
+/* ── Safe area utilities ── */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+}

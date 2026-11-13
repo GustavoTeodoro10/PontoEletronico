@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Registro, Justificativa, Atestado, Funcionario, Unidade, AssinaturaEspelho } from '@/types';
 import { formatCPF, cleanCPF } from '@/lib/cpf';
+import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
 
 interface Props {
   role: string;
@@ -17,7 +18,13 @@ interface Props {
   hoje: string;
 }
 
-type Tab = 'hoje' | 'justificativas' | 'atestados' | 'funcionarios' | 'assinaturas' | 'coberturas' | 'cadastrar';
+type Tab = 'hoje' | 'justificativas' | 'atestados' | 'assinaturas' | 'relatorio' | 'funcionarios' | 'coberturas' | 'cadastrar';
+
+interface RelatorioData {
+  registros: Registro[];
+  assinatura: AssinaturaEspelho | null;
+  funcionario: Funcionario | null;
+}
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -36,6 +43,46 @@ export default function AdminClient({
   // Atestados
   const [atestados, setAtestados] = useState<Atestado[]>(initialAtestados);
   const [ateLoading, setAteLoading] = useState('');
+
+  // Relatório
+  const [relCpf,     setRelCpf]     = useState('');
+  const [relAno,     setRelAno]     = useState(() => new Date().getFullYear());
+  const [relMes,     setRelMes]     = useState(() => new Date().getMonth() + 1);
+  const [relData,    setRelData]    = useState<RelatorioData | null>(null);
+  const [relLoading, setRelLoading] = useState(false);
+  const [relErr,     setRelErr]     = useState('');
+
+  async function handleBuscarRelatorio() {
+    if (!relCpf) return;
+    setRelLoading(true);
+    setRelErr('');
+    setRelData(null);
+    try {
+      const res = await fetch(`/api/admin/relatorio?cpf=${encodeURIComponent(relCpf)}&ano=${relAno}&mes=${relMes}`);
+      const json = await res.json();
+      if (!res.ok) { setRelErr(json.error || 'Erro ao buscar.'); return; }
+      setRelData(json);
+    } finally {
+      setRelLoading(false);
+    }
+  }
+
+  async function handleDownloadPDF() {
+    if (!relData) return;
+    const unidadeNome = unidades.find(u => u.id === relData.funcionario?.unidadeId)?.nome ?? '—';
+    const { generatePontoPDF } = await import('@/lib/generate-pdf');
+    await generatePontoPDF({
+      nome: relData.funcionario?.nome ?? relCpf,
+      cpf: relCpf,
+      matricula: relData.funcionario?.matricula ?? '—',
+      cargo: relData.funcionario?.cargo ?? '—',
+      unidadeNome,
+      registros: relData.registros,
+      assinatura: relData.assinatura,
+      ano: relAno,
+      mes: relMes,
+    });
+  }
 
   // Reset senha
   const [resettingCpf, setResettingCpf] = useState('');
@@ -195,12 +242,13 @@ export default function AdminClient({
 
         {/* Tabs */}
         <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
-          {(['hoje', 'justificativas', 'atestados', 'assinaturas', 'funcionarios', 'coberturas', 'cadastrar'] as Tab[]).map(t => (
+          {(['hoje', 'justificativas', 'atestados', 'assinaturas', 'relatorio', 'funcionarios', 'coberturas', 'cadastrar'] as Tab[]).map(t => (
             <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
               {t === 'hoje'          ? `Hoje (${registrosHoje.length})`
                 : t === 'justificativas' ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
                 : t === 'atestados'      ? `Atestos (${atestados.filter(a => a.status === 'Pendente').length})`
                 : t === 'assinaturas'    ? `Assin. (${assinaturasPendentes.length})`
+                : t === 'relatorio'      ? 'Relatório'
                 : t === 'funcionarios'   ? 'Funcionários'
                 : t === 'coberturas'     ? 'Coberturas'
                 : '+ Cadastrar'}
@@ -513,6 +561,171 @@ export default function AdminClient({
                 </button>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* Tab: Relatório */}
+        {tab === 'relatorio' && (
+          <div className="flex flex-col gap-4">
+            {/* Filtros */}
+            <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
+              <p className="text-sm font-semibold text-eif-dark">Relatório de Horas</p>
+              <select
+                value={relCpf}
+                onChange={e => { setRelCpf(e.target.value); setRelData(null); }}
+                className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+              >
+                <option value="">Selecionar funcionário…</option>
+                {funcionarios.filter(f => f.ativo).map(f => (
+                  <option key={f.cpf} value={f.cpf}>{f.nome}</option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <select
+                  value={relMes}
+                  onChange={e => { setRelMes(Number(e.target.value)); setRelData(null); }}
+                  className="flex-1 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                >
+                  {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+                <select
+                  value={relAno}
+                  onChange={e => { setRelAno(Number(e.target.value)); setRelData(null); }}
+                  className="flex-1 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40"
+                >
+                  {[2024, 2025, 2026, 2027].map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <button
+                onClick={handleBuscarRelatorio}
+                disabled={!relCpf || relLoading}
+                className="bg-eif-red text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {relLoading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                      <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    Buscando…
+                  </>
+                ) : 'Buscar'}
+              </button>
+              {relErr && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{relErr}</p>}
+            </div>
+
+            {/* Resultado */}
+            {relData && (() => {
+              const banco = calcularBancoHorasMes(relData.registros, relAno, relMes);
+              const byDay: Record<string, Registro[]> = {};
+              for (const r of relData.registros) {
+                const day = r.dataHora.slice(0, 10);
+                (byDay[day] ??= []).push(r);
+              }
+              const days = Object.keys(byDay).sort();
+              const bancoByDay: Record<string, number> = {};
+              for (const d of banco.detalhesPorDia) bancoByDay[d.data] = d.horasTrabalhadas;
+
+              const fmtTime = (recs: Registro[], tipo: string) => {
+                const r = recs.find(x => x.tipo === tipo);
+                return r ? new Date(r.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
+              };
+
+              return (
+                <>
+                  {/* Cabeçalho do funcionário */}
+                  <div className="bg-white rounded-2xl shadow-sm px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-eif-dark">{relData.funcionario?.nome ?? relCpf}</p>
+                        <p className="text-xs text-eif-text">
+                          {relData.funcionario?.cargo ?? '—'} · {unidades.find(u => u.id === relData.funcionario?.unidadeId)?.nome ?? ''} · {MESES[relMes - 1]} {relAno}
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleDownloadPDF}
+                        className="shrink-0 flex items-center gap-1.5 bg-eif-red text-white rounded-lg px-3 py-2 text-xs font-semibold"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="7 10 12 15 17 10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KPIs do mês */}
+                  <div className="bg-white rounded-2xl shadow-sm flex divide-x divide-eif-cream-mid overflow-hidden">
+                    <div className="flex-1 px-3 py-4 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-eif-text">Dias</p>
+                      <p className="font-bold text-2xl mt-1 tabular-nums text-eif-dark">{days.length}</p>
+                    </div>
+                    <div className="flex-1 px-3 py-4 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-eif-text">Trabalhado</p>
+                      <p className="font-bold text-2xl mt-1 tabular-nums text-eif-dark">{formatHoras(banco.totalTrabalhado)}</p>
+                    </div>
+                    <div className="flex-1 px-3 py-4 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-eif-text">Esperado</p>
+                      <p className="font-bold text-2xl mt-1 tabular-nums text-eif-dark">{formatHoras(banco.totalEsperado)}</p>
+                    </div>
+                    <div className={`flex-1 px-3 py-4 text-center ${banco.saldo >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-eif-text">Saldo</p>
+                      <p className={`font-bold text-2xl mt-1 tabular-nums ${banco.saldo >= 0 ? 'text-green-700' : 'text-eif-red'}`}>
+                        {banco.saldo >= 0 ? '+' : ''}{formatHoras(banco.saldo)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tabela de registros */}
+                  <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                    {days.length === 0 ? (
+                      <p className="text-center text-eif-text text-sm p-6">Nenhum registro neste período.</p>
+                    ) : (
+                      <>
+                        {/* Cabeçalho da tabela */}
+                        <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-0 bg-eif-red text-white text-[10px] font-semibold uppercase tracking-wide px-4 py-2">
+                          <span>Data</span>
+                          <span className="w-10 text-center">Entr.</span>
+                          <span className="w-10 text-center">S.Alm</span>
+                          <span className="w-10 text-center">E.Alm</span>
+                          <span className="w-10 text-center">Saída</span>
+                          <span className="w-10 text-center">Total</span>
+                        </div>
+                        <div className="divide-y divide-eif-cream-mid">
+                          {days.map((day, idx) => {
+                            const recs = byDay[day];
+                            const horas = bancoByDay[day] ?? 0;
+                            const dateObj = new Date(day + 'T12:00:00');
+                            const dateStr = dateObj.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+                            const isSat = dateObj.getDay() === 6;
+                            const isSun = dateObj.getDay() === 0;
+                            return (
+                              <div
+                                key={day}
+                                className={`grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-0 px-4 py-2.5 text-xs tabular-nums ${
+                                  isSun ? 'bg-red-50/50' : isSat ? 'bg-amber-50/40' : idx % 2 === 1 ? 'bg-eif-cream/40' : ''
+                                }`}
+                              >
+                                <span className="text-eif-dark font-medium capitalize">{dateStr}</span>
+                                <span className="w-10 text-center text-eif-text">{fmtTime(recs, 'Entrada')}</span>
+                                <span className="w-10 text-center text-eif-text">{fmtTime(recs, 'Saída Almoço')}</span>
+                                <span className="w-10 text-center text-eif-text">{fmtTime(recs, 'Entrada Almoço')}</span>
+                                <span className="w-10 text-center text-eif-text">{fmtTime(recs, 'Saída')}</span>
+                                <span className={`w-10 text-center font-semibold ${horas > 0 ? 'text-eif-dark' : 'text-eif-text/50'}`}>
+                                  {horas > 0 ? formatHoras(horas) : '—'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 

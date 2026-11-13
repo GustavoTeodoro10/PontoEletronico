@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   const hash = await bcrypt.hash(novaSenha, 12);
   await updateFuncionarioSenha(session.user.cpf, hash);
-  await unstable_update({ mustChangePassword: false });
+  await unstable_update({ user: { mustChangePassword: false } });
 
   return NextResponse.json({ success: true });
 }

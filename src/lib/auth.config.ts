@@ -49,6 +49,7 @@ export const authConfig: NextAuthConfig = {
 
     session({ session, token }) {
       session.user = {
+        ...session.user,
         cpf:               token.cpf as string,
         matricula:         token.matricula as string,
         nome:              token.nome as string,

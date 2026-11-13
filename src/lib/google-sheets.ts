@@ -172,6 +172,21 @@ export async function getUnidadeById(id: string): Promise<Unidade | null> {
   return row ? rowToUnidade(row) : null;
 }
 
+export async function appendUnidade(data: Omit<Unidade, 'id'>): Promise<string> {
+  const id = `u${Date.now()}`;
+  await appendRow(TABS.unidades, [id, data.nome, data.empresa, data.endereco, data.lat, data.lon, data.raioMetros, data.ativo ? 'TRUE' : 'FALSE']);
+  return id;
+}
+
+export async function updateUnidade(id: string, data: Partial<Omit<Unidade, 'id'>>): Promise<void> {
+  const rows = await getRows(TABS.unidades);
+  const idx = rows.findIndex(r => r[0] === id);
+  if (idx === -1) throw new Error('Unidade não encontrada.');
+  const current = rowToUnidade(rows[idx]);
+  const updated: Unidade = { ...current, ...data };
+  await updateRow(TABS.unidades, idx, [updated.id, updated.nome, updated.empresa, updated.endereco, updated.lat, updated.lon, updated.raioMetros, updated.ativo ? 'TRUE' : 'FALSE']);
+}
+
 // ── Distance helper (Haversine) ────────────────────────────────────────────
 export function calcDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;

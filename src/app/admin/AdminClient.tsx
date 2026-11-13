@@ -19,7 +19,7 @@ interface Props {
   hoje: string;
 }
 
-type Tab = 'hoje' | 'justificativas' | 'atestados' | 'assinaturas' | 'relatorio' | 'funcionarios' | 'coberturas' | 'cadastrar';
+type Tab = 'hoje' | 'justificativas' | 'atestados' | 'assinaturas' | 'relatorio' | 'funcionarios' | 'coberturas' | 'cadastrar' | 'unidades';
 
 interface RelatorioData {
   registros: Registro[];
@@ -88,6 +88,73 @@ export default function AdminClient({
   // Reset senha
   const [resettingCpf, setResettingCpf] = useState('');
   const [resetMsg, setResetMsg] = useState('');
+
+  // Unidades
+  const [uniList, setUniList] = useState<Unidade[]>(unidades);
+  const [uniEditing, setUniEditing] = useState<Unidade | null>(null);
+  const [uniFormOpen, setUniFormOpen] = useState(false);
+  const [uniNome, setUniNome] = useState('');
+  const [uniEmpresa, setUniEmpresa] = useState('E.I.F Alimentos');
+  const [uniEndereco, setUniEndereco] = useState('');
+  const [uniLat, setUniLat] = useState('');
+  const [uniLon, setUniLon] = useState('');
+  const [uniRaio, setUniRaio] = useState('200');
+  const [uniLoading, setUniLoading] = useState(false);
+  const [uniMsg, setUniMsg] = useState('');
+
+  function abrirFormUnidade(u?: Unidade) {
+    setUniMsg('');
+    if (u) {
+      setUniEditing(u);
+      setUniNome(u.nome);
+      setUniEmpresa(u.empresa);
+      setUniEndereco(u.endereco);
+      setUniLat(String(u.lat));
+      setUniLon(String(u.lon));
+      setUniRaio(String(u.raioMetros));
+    } else {
+      setUniEditing(null);
+      setUniNome('');
+      setUniEmpresa('E.I.F Alimentos');
+      setUniEndereco('');
+      setUniLat('');
+      setUniLon('');
+      setUniRaio('200');
+    }
+    setUniFormOpen(true);
+  }
+
+  async function handleSalvarUnidade(e: React.FormEvent) {
+    e.preventDefault();
+    setUniMsg('');
+    setUniLoading(true);
+    try {
+      const payload = { nome: uniNome, empresa: uniEmpresa, endereco: uniEndereco, lat: uniLat, lon: uniLon, raioMetros: uniRaio };
+      if (uniEditing) {
+        const res = await fetch(`/api/admin/unidades/${uniEditing.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const json = await res.json();
+        if (!res.ok) { setUniMsg(`Erro: ${json.error}`); return; }
+        setUniList(prev => prev.map(u => u.id === uniEditing.id ? { ...u, ...payload, lat: parseFloat(uniLat), lon: parseFloat(uniLon), raioMetros: parseInt(uniRaio) } : u));
+      } else {
+        const res = await fetch('/api/admin/unidades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const json = await res.json();
+        if (!res.ok) { setUniMsg(`Erro: ${json.error}`); return; }
+        setUniList(prev => [...prev, { id: json.id, nome: uniNome, empresa: uniEmpresa, endereco: uniEndereco, lat: parseFloat(uniLat), lon: parseFloat(uniLon), raioMetros: parseInt(uniRaio), ativo: true }]);
+      }
+      setUniMsg(uniEditing ? 'Unidade atualizada!' : 'Unidade criada!');
+      setTimeout(() => { setUniFormOpen(false); setUniMsg(''); }, 1500);
+    } finally {
+      setUniLoading(false);
+    }
+  }
+
+  async function handleToggleUnidade(u: Unidade) {
+    try {
+      const res = await fetch(`/api/admin/unidades/${u.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: !u.ativo }) });
+      if (!res.ok) return;
+      setUniList(prev => prev.map(x => x.id === u.id ? { ...x, ativo: !x.ativo } : x));
+    } catch {}
+  }
 
   // Nova cobertura
   const [cobCpf, setCobCpf] = useState('');
@@ -243,7 +310,7 @@ export default function AdminClient({
 
         {/* Tabs */}
         <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
-          {(['hoje', 'justificativas', 'atestados', 'assinaturas', 'relatorio', 'funcionarios', 'coberturas', 'cadastrar'] as Tab[]).map(t => (
+          {(['hoje', 'justificativas', 'atestados', 'assinaturas', 'relatorio', 'funcionarios', 'coberturas', 'unidades', 'cadastrar'] as Tab[]).map(t => (
             <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
               {t === 'hoje'          ? `Hoje (${registrosHoje.length})`
                 : t === 'justificativas' ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
@@ -252,6 +319,7 @@ export default function AdminClient({
                 : t === 'relatorio'      ? 'Relatório'
                 : t === 'funcionarios'   ? 'Funcionários'
                 : t === 'coberturas'     ? 'Coberturas'
+                : t === 'unidades'       ? 'Unidades'
                 : '+ Cadastrar'}
             </TabBtn>
           ))}
@@ -738,6 +806,118 @@ export default function AdminClient({
         )}
 
         {/* Tab: Coberturas */}
+        {/* Tab: Unidades */}
+        {tab === 'unidades' && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-eif-dark">{uniList.length} unidade{uniList.length !== 1 ? 's' : ''}</p>
+              <button
+                onClick={() => abrirFormUnidade()}
+                className="flex items-center gap-1.5 bg-eif-red text-white rounded-lg px-3 py-2 text-xs font-semibold"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nova Unidade
+              </button>
+            </div>
+
+            {/* Form criar/editar */}
+            {uniFormOpen && (
+              <div className="bg-white rounded-2xl shadow-sm p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm font-semibold text-eif-dark">{uniEditing ? 'Editar Unidade' : 'Nova Unidade'}</p>
+                  <button onClick={() => setUniFormOpen(false)} className="text-eif-text hover:text-eif-dark">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+                <form onSubmit={handleSalvarUnidade} className="flex flex-col gap-3">
+                  <input type="text" placeholder="Nome da unidade" value={uniNome} onChange={e => setUniNome(e.target.value)} required
+                    className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40" />
+                  <input type="text" placeholder="Empresa" value={uniEmpresa} onChange={e => setUniEmpresa(e.target.value)} required
+                    className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40" />
+                  <input type="text" placeholder="Endereço" value={uniEndereco} onChange={e => setUniEndereco(e.target.value)} required
+                    className="border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40" />
+                  <div className="flex gap-2">
+                    <input type="text" inputMode="decimal" placeholder="Latitude (ex: -23.5505)" value={uniLat} onChange={e => setUniLat(e.target.value)} required
+                      className="flex-1 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40" />
+                    <input type="text" inputMode="decimal" placeholder="Longitude (ex: -46.6333)" value={uniLon} onChange={e => setUniLon(e.target.value)} required
+                      className="flex-1 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="50" max="2000" placeholder="Raio (metros)" value={uniRaio} onChange={e => setUniRaio(e.target.value)} required
+                      className="flex-1 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40" />
+                    <span className="text-xs text-eif-text shrink-0">metros</span>
+                  </div>
+                  {uniMsg && (
+                    <p className={`text-xs rounded-lg px-3 py-2 ${uniMsg.startsWith('Erro') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>{uniMsg}</p>
+                  )}
+                  <button type="submit" disabled={uniLoading}
+                    className="bg-eif-red text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2">
+                    {uniLoading ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/>
+                          <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                        </svg>
+                        Salvando…
+                      </>
+                    ) : uniEditing ? 'Salvar Alterações' : 'Criar Unidade'}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Lista de unidades */}
+            <div className="flex flex-col gap-3">
+              {uniList.map(u => (
+                <div key={u.id} className={`bg-white rounded-2xl shadow-sm overflow-hidden ${!u.ativo ? 'opacity-60' : ''}`}>
+                  <div className="px-4 py-3 flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-eif-dark truncate">{u.nome}</p>
+                        <span className={`text-[10px] rounded-full px-2 py-0.5 font-semibold shrink-0 ${u.ativo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {u.ativo ? 'Ativa' : 'Inativa'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-eif-text mt-0.5">{u.empresa}</p>
+                      <p className="text-xs text-eif-text mt-0.5 truncate">{u.endereco}</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => abrirFormUnidade(u)} title="Editar"
+                        className="p-2 rounded-lg hover:bg-eif-cream text-eif-text hover:text-eif-dark transition">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button onClick={() => handleToggleUnidade(u)} title={u.ativo ? 'Desativar' : 'Ativar'}
+                        className={`p-2 rounded-lg transition ${u.ativo ? 'hover:bg-red-50 text-eif-text hover:text-red-600' : 'hover:bg-green-50 text-eif-text hover:text-green-600'}`}>
+                        {u.ativo ? (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                          </svg>
+                        ) : (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="border-t border-eif-cream-mid px-4 py-2 flex gap-4 text-xs text-eif-text">
+                    <span>Lat: {u.lat}</span>
+                    <span>Lon: {u.lon}</span>
+                    <span>Raio: {u.raioMetros}m</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {tab === 'coberturas' && (
           <div className="flex flex-col gap-4">
             <div className="bg-white rounded-2xl shadow-sm p-4">

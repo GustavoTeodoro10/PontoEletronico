@@ -4,30 +4,6 @@ import bcrypt from 'bcryptjs';
 import { getFuncionarioByCPF } from '@/lib/google-sheets';
 import { cleanCPF, validateCPF } from '@/lib/cpf';
 import { authConfig } from '@/lib/auth.config';
-import type { Funcionario } from '@/types';
-
-declare module 'next-auth' {
-  interface Session {
-    user: {
-      cpf: string;
-      matricula: string;
-      nome: string;
-      primeiroNome: string;
-      unidadeId: string;
-      role: Funcionario['role'];
-      mustChangePassword: boolean;
-    };
-  }
-  interface User {
-    cpf: string;
-    matricula: string;
-    nome: string;
-    primeiroNome: string;
-    unidadeId: string;
-    role: Funcionario['role'];
-    mustChangePassword: boolean;
-  }
-}
 
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, unstable_update } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { updateFuncionarioSenha } from '@/lib/google-sheets';
 import bcrypt from 'bcryptjs';
 
@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
 
   const hash = await bcrypt.hash(novaSenha, 12);
   await updateFuncionarioSenha(session.user.cpf, hash);
-  await unstable_update({ mustChangePassword: false });
 
   return NextResponse.json({ success: true });
 }

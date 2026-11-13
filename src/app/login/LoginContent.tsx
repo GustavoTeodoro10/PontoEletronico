@@ -10,6 +10,7 @@ export default function LoginContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl  = searchParams.get('callbackUrl') || '/dashboard';
+  const senhaAlterada = searchParams.get('senhaAlterada') === '1';
 
   const [cpf,      setCpf]      = useState('');
   const [senha,    setSenha]    = useState('');
@@ -65,6 +66,13 @@ export default function LoginContent() {
           <h1 className="text-eif-dark font-semibold text-xl">EIF Ponto Eletrônico</h1>
           <p className="text-eif-text text-sm mt-1">E.I.F Alimentos</p>
         </div>
+
+        {/* Banner senha alterada */}
+        {senhaAlterada && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4 text-sm text-green-700 text-center">
+            Senha alterada com sucesso. Faça o login com a nova senha.
+          </div>
+        )}
 
         {/* Card */}
         <form

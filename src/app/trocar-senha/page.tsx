@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 export default function TrocarSenhaPage() {
   const router = useRouter();
@@ -37,8 +38,9 @@ export default function TrocarSenhaPage() {
       return;
     }
 
-    // Hard redirect para forçar refresh completo do JWT na sessão
-    window.location.href = '/dashboard';
+    // Encerra a sessão atual e redireciona para login com nova senha
+    await signOut({ redirect: false });
+    window.location.href = '/login?senhaAlterada=1';
   }
 
   return (

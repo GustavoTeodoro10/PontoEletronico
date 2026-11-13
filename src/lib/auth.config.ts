@@ -38,6 +38,7 @@ export const authConfig: NextAuthConfig = {
         token.nome               = (user as unknown as Funcionario).nome;
         token.primeiroNome       = (user as unknown as Funcionario).primeiroNome;
         token.unidadeId          = (user as unknown as Funcionario).unidadeId;
+        token.cargo              = (user as unknown as Funcionario).cargo;
         token.role               = (user as unknown as Funcionario).role;
         token.mustChangePassword = (user as unknown as { mustChangePassword: boolean }).mustChangePassword;
       }
@@ -55,6 +56,7 @@ export const authConfig: NextAuthConfig = {
         nome:              token.nome as string,
         primeiroNome:      token.primeiroNome as string,
         unidadeId:         token.unidadeId as string,
+        cargo:             token.cargo as string,
         role:              token.role as Funcionario['role'],
         mustChangePassword:token.mustChangePassword as boolean,
       };

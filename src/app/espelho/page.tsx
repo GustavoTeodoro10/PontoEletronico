@@ -26,6 +26,9 @@ export default async function EspelhoPage({
   return (
     <EspelhoClient
       nome={session.user.primeiroNome}
+      nomeCompleto={session.user.nome}
+      cpf={session.user.cpf}
+      cargo={session.user.cargo ?? ''}
       matricula={session.user.matricula}
       registros={registros}
       ano={ano}

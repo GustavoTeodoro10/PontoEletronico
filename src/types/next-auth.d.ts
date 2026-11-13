@@ -8,6 +8,7 @@ declare module 'next-auth' {
       nome: string;
       primeiroNome: string;
       unidadeId: string;
+      cargo: string;
       role: 'funcionario' | 'gestor' | 'admin';
       mustChangePassword: boolean;
     } & DefaultSession['user'];
@@ -21,6 +22,7 @@ declare module 'next-auth/jwt' {
     nome?: string;
     primeiroNome?: string;
     unidadeId?: string;
+    cargo?: string;
     role?: 'funcionario' | 'gestor' | 'admin';
     mustChangePassword?: boolean;
   }

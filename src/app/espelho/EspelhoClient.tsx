@@ -7,6 +7,9 @@ import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
 
 interface Props {
   nome: string;
+  nomeCompleto: string;
+  cpf: string;
+  cargo: string;
   matricula: string;
   registros: Registro[];
   ano: number;
@@ -17,11 +20,34 @@ interface Props {
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-export default function EspelhoClient({ nome, matricula, registros, ano, mes, assinatura: initialAssinatura }: Props) {
+export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricula, registros, ano, mes, assinatura: initialAssinatura }: Props) {
   const router = useRouter();
   const [assinatura, setAssinatura] = useState(initialAssinatura);
   const [assinando, setAssinando] = useState(false);
   const [erroAssinatura, setErroAssinatura] = useState('');
+  const [baixandoPDF, setBaixandoPDF] = useState(false);
+
+  const unidadeNome = registros[0]?.unidadeNome ?? '';
+
+  async function handleBaixarPDF() {
+    setBaixandoPDF(true);
+    try {
+      const { generatePontoPDF } = await import('@/lib/generate-pdf');
+      await generatePontoPDF({
+        nome: nomeCompleto,
+        cpf,
+        matricula,
+        cargo,
+        unidadeNome,
+        registros,
+        assinatura,
+        ano,
+        mes,
+      });
+    } finally {
+      setBaixandoPDF(false);
+    }
+  }
 
   function navMes(delta: number) {
     let novoMes = mes + delta;
@@ -76,7 +102,26 @@ export default function EspelhoClient({ nome, matricula, registros, ano, mes, as
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-            <h1 className="font-semibold text-lg">Espelho do Ponto</h1>
+            <h1 className="font-semibold text-lg flex-1">Espelho do Ponto</h1>
+            <button
+              onClick={handleBaixarPDF}
+              disabled={baixandoPDF}
+              title="Baixar PDF do espelho"
+              className="text-white/80 hover:text-white disabled:opacity-50 transition flex items-center gap-1.5 text-xs font-medium"
+            >
+              {baixandoPDF ? (
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 16l-4-4h3V4h2v8h3l-4 4z" />
+                  <path d="M4 18h16" strokeLinecap="round" />
+                </svg>
+              )}
+              PDF
+            </button>
           </div>
           <p className="text-sm opacity-80">{nome} · Mat. {matricula}</p>
         </div>

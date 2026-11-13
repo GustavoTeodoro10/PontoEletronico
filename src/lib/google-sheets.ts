@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import bcrypt from 'bcryptjs';
-import type { Funcionario, Unidade, Registro, Justificativa, Atestado, PunchType, Cobertura, AssinaturaEspelho } from '@/types';
+import type { Funcionario, Unidade, Registro, Justificativa, Atestado, PunchType, Cobertura, AssinaturaEspelho, Dispositivo } from '@/types';
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 function getAuthClient() {
@@ -505,4 +505,60 @@ export async function getAllAssinaturasPendentes(): Promise<AssinaturaEspelho[]>
   return rows
     .filter(r => r[0] && r[5] === 'Confirmado' && r[7] !== 'Assinado')
     .map(rowToAssinatura);
+}
+
+// ── Dispositivos ───────────────────────────────────────────────────────────
+// Columns: ID | CPF | CredentialID | PublicKey | Counter | Transports | NomeDispositivo | CadastradoEm | Ativo
+
+function rowToDispositivo(r: string[]): Dispositivo {
+  return {
+    id:              r[0] || '',
+    cpf:             r[1] || '',
+    credentialId:    r[2] || '',
+    publicKey:       r[3] || '',
+    counter:         parseInt(r[4]) || 0,
+    transports:      r[5] || '',
+    nomeDispositivo: r[6] || '',
+    cadastradoEm:    r[7] || '',
+    ativo:           r[8] !== 'FALSE',
+  };
+}
+
+export async function getDispositivosByCPF(cpf: string): Promise<Dispositivo[]> {
+  let rows: string[][];
+  try { rows = await getRows(TABS.dispositivos); }
+  catch { return []; }
+  const clean = cpf.replace(/\D/g, '');
+  return rows.filter(r => r[0] && r[1]?.replace(/\D/g, '') === clean).map(rowToDispositivo);
+}
+
+export async function appendDispositivo(data: Omit<Dispositivo, 'id'>): Promise<string> {
+  const id = `d${Date.now()}`;
+  await appendRow(TABS.dispositivos, [
+    id, data.cpf, data.credentialId, data.publicKey,
+    data.counter, data.transports, data.nomeDispositivo,
+    data.cadastradoEm, data.ativo ? 'TRUE' : 'FALSE',
+  ]);
+  return id;
+}
+
+export async function updateDispositivoCounter(id: string, counter: number): Promise<void> {
+  let rows: string[][];
+  try { rows = await getRows(TABS.dispositivos); }
+  catch { return; }
+  const idx = rows.findIndex(r => r[0] === id);
+  if (idx === -1) return;
+  const row = [...rows[idx]];
+  row[4] = String(counter);
+  await updateRow(TABS.dispositivos, idx, row);
+}
+
+export async function deactivateDispositivo(id: string, cpf: string): Promise<void> {
+  const rows = await getRows(TABS.dispositivos);
+  const clean = cpf.replace(/\D/g, '');
+  const idx = rows.findIndex(r => r[0] === id && r[1]?.replace(/\D/g, '') === clean);
+  if (idx === -1) throw new Error('Dispositivo não encontrado.');
+  const row = [...rows[idx]];
+  row[8] = 'FALSE';
+  await updateRow(TABS.dispositivos, idx, row);
 }

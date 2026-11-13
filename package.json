@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^9.0.1",
+    "@simplewebauthn/server": "^9.0.3",
     "bcryptjs": "^3.0.3",
     "googleapis": "^190.0.0",
     "jspdf": "^4.2.1",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Registro, AssinaturaEspelho, Justificativa, Atestado } from '@/types';
 import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
@@ -47,6 +47,14 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
   const [justLoading, setJustLoading] = useState(false);
   const [justErro, setJustErro] = useState('');
   const [justOk, setJustOk] = useState(false);
+
+  // Biometria
+  const [bioOpen,       setBioOpen]       = useState(false);
+  const [bioDevices,    setBioDevices]    = useState<{ id: string; nomeDispositivo: string; cadastradoEm: string }[]>([]);
+  const [bioLoading,    setBioLoading]    = useState(false);
+  const [bioMsg,        setBioMsg]        = useState('');
+  const [bioErr,        setBioErr]        = useState('');
+  const [bioSupported,  setBioSupported]  = useState(false);
 
   // Atestados
   const [atestados, setAtestados] = useState<Atestado[]>(initialAtestados);
@@ -174,6 +182,80 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
           statusFuncionario: 'Confirmado', assinadoFuncionarioEm: new Date().toISOString(),
           statusAdmin: 'Pendente', assinadoAdminEm: '', adminCpf: '' }
     );
+  }
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(ok => setBioSupported(ok))
+        .catch(() => setBioSupported(false));
+    }
+  }, []);
+
+  async function fetchDevices() {
+    const res = await fetch('/api/webauthn/devices');
+    if (!res.ok) return;
+    const { dispositivos } = await res.json();
+    setBioDevices(dispositivos);
+  }
+
+  async function handleOpenBio() {
+    setBioOpen(o => !o);
+    if (!bioOpen) {
+      await fetchDevices();
+    }
+  }
+
+  async function handleCadastrarBiometria() {
+    setBioErr('');
+    setBioMsg('');
+    setBioLoading(true);
+    try {
+      const optRes = await fetch('/api/webauthn/register/options');
+      if (!optRes.ok) {
+        const j = await optRes.json();
+        setBioErr(j.error || 'Erro ao iniciar cadastro.');
+        return;
+      }
+      const options = await optRes.json();
+
+      const { startRegistration } = await import('@simplewebauthn/browser');
+      const regResp = await startRegistration(options);
+
+      const verRes = await fetch('/api/webauthn/register/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(regResp),
+      });
+      if (!verRes.ok) {
+        const j = await verRes.json();
+        setBioErr(j.error || 'Erro ao verificar biometria.');
+        return;
+      }
+      const { nomeDispositivo } = await verRes.json();
+      setBioMsg(`Biometria cadastrada: ${nomeDispositivo}`);
+      await fetchDevices();
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'NotAllowedError') {
+        setBioErr('Cadastro cancelado.');
+      } else {
+        setBioErr('Erro ao cadastrar biometria.');
+      }
+    } finally {
+      setBioLoading(false);
+    }
+  }
+
+  async function handleRemoverDispositivo(id: string) {
+    setBioErr('');
+    setBioMsg('');
+    const res = await fetch(`/api/webauthn/devices/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      setBioErr('Erro ao remover dispositivo.');
+      return;
+    }
+    setBioMsg('Dispositivo removido.');
+    setBioDevices(prev => prev.filter(d => d.id !== id));
   }
 
   // Group by day
@@ -572,6 +654,86 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
                   {justLoading ? 'Enviando…' : 'Enviar Justificativa'}
                 </button>
               </form>
+            </div>
+          )}
+        </div>
+        {/* Biometria */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <button
+            onClick={handleOpenBio}
+            className="w-full flex items-center justify-between px-4 py-4"
+          >
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-eif-red shrink-0">
+                <path d="M12 2C8.13 2 5 5.13 5 9v3c0 2.97 1.63 5.56 4 6.93V21h6v-2.07C17.37 17.56 19 14.97 19 12V9c0-3.87-3.13-7-7-7z" strokeLinejoin="round"/>
+                <path d="M9 9a3 3 0 0 1 6 0" strokeLinecap="round"/>
+              </svg>
+              <p className="text-xs font-semibold text-eif-text uppercase tracking-wide">Face ID / Biometria</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {bioDevices.length > 0 && (
+                <span className="text-xs bg-eif-cream-mid text-eif-dark rounded-full px-2 py-0.5 font-medium">
+                  {bioDevices.length}
+                </span>
+              )}
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                className={`text-eif-text transition-transform ${bioOpen ? 'rotate-180' : ''}`}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </button>
+
+          {bioOpen && (
+            <div className="border-t border-eif-cream-mid px-4 pb-4 flex flex-col gap-3 pt-3">
+              {bioDevices.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {bioDevices.map(d => (
+                    <div key={d.id} className="rounded-lg border border-eif-cream-mid p-3 flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-eif-dark">{d.nomeDispositivo}</p>
+                        <p className="text-xs text-eif-text mt-0.5">
+                          Cadastrado em {new Date(d.cadastradoEm).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoverDispositivo(d.id)}
+                        className="text-xs text-red-500 hover:text-red-700 shrink-0 font-medium"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {bioErr && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{bioErr}</p>}
+              {bioMsg && <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">{bioMsg}</p>}
+
+              {bioSupported ? (
+                <button
+                  onClick={handleCadastrarBiometria}
+                  disabled={bioLoading}
+                  className="bg-eif-red text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {bioLoading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                        <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                      </svg>
+                      Cadastrando…
+                    </>
+                  ) : (
+                    bioDevices.length > 0 ? 'Adicionar outro dispositivo' : 'Cadastrar Face ID / Biometria'
+                  )}
+                </button>
+              ) : (
+                <p className="text-xs text-eif-text text-center py-2">
+                  Seu dispositivo não suporta biometria ou não possui autenticador de plataforma.
+                </p>
+              )}
             </div>
           )}
         </div>

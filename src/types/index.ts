@@ -105,6 +105,18 @@ export interface AssinaturaEspelho {
   adminCpf: string;
 }
 
+export interface Dispositivo {
+  id: string;
+  cpf: string;
+  credentialId: string;
+  publicKey: string;
+  counter: number;
+  transports: string;
+  nomeDispositivo: string;
+  cadastradoEm: string;
+  ativo: boolean;
+}
+
 export interface BancoHorasDia {
   data: string;         // YYYY-MM-DD
   horasTrabalhadas: number;

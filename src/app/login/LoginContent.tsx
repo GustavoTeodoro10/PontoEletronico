@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
@@ -12,12 +12,22 @@ export default function LoginContent() {
   const callbackUrl  = searchParams.get('callbackUrl') || '/dashboard';
   const senhaAlterada = searchParams.get('senhaAlterada') === '1';
 
-  const [cpf,      setCpf]      = useState('');
-  const [senha,    setSenha]    = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [erro,     setErro]     = useState('');
+  const [cpf,          setCpf]          = useState('');
+  const [senha,        setSenha]        = useState('');
+  const [loading,      setLoading]      = useState(false);
+  const [erro,         setErro]         = useState('');
+  const [bioLoading,   setBioLoading]   = useState(false);
+  const [bioSupported, setBioSupported] = useState(false);
 
   const senhaRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(ok => setBioSupported(ok))
+        .catch(() => setBioSupported(false));
+    }
+  }, []);
 
   function handleCpfChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = cleanCPF(e.target.value);
@@ -55,6 +65,66 @@ export default function LoginContent() {
     }
     router.push(callbackUrl);
     router.refresh();
+  }
+
+  async function handleBiometricLogin() {
+    const cpfLimpo = cleanCPF(cpf);
+    if (!validateCPF(cpfLimpo)) {
+      setErro('Informe o CPF antes de usar biometria.');
+      return;
+    }
+    setErro('');
+    setBioLoading(true);
+    try {
+      const optRes = await fetch('/api/webauthn/authenticate/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cpf: cpfLimpo }),
+      });
+      if (!optRes.ok) {
+        const j = await optRes.json();
+        setErro(j.error || 'Nenhuma biometria cadastrada para este CPF.');
+        return;
+      }
+      const options = await optRes.json();
+
+      const { startAuthentication } = await import('@simplewebauthn/browser');
+      const authResp = await startAuthentication(options);
+
+      const verRes = await fetch('/api/webauthn/authenticate/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...authResp, cpf: cpfLimpo }),
+      });
+      if (!verRes.ok) {
+        const j = await verRes.json();
+        setErro(j.error || 'Autenticação falhou.');
+        return;
+      }
+      const { token } = await verRes.json();
+
+      const result = await signIn('credentials', {
+        cpf: cpfLimpo,
+        senha: '',
+        webauthnToken: token,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setErro('Autenticação falhou. Tente novamente.');
+        return;
+      }
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'NotAllowedError') {
+        setErro('Biometria cancelada.');
+      } else {
+        setErro('Erro ao usar biometria. Tente a senha.');
+      }
+    } finally {
+      setBioLoading(false);
+    }
   }
 
   return (
@@ -145,6 +215,42 @@ export default function LoginContent() {
             Esqueceu a senha? Fale com o RH.
           </p>
         </form>
+
+        {bioSupported && (
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <div className="flex items-center gap-3 w-full">
+              <div className="flex-1 h-px bg-eif-cream-dark" />
+              <span className="text-xs text-eif-text/60">ou</span>
+              <div className="flex-1 h-px bg-eif-cream-dark" />
+            </div>
+            <button
+              type="button"
+              disabled={bioLoading || loading}
+              onClick={handleBiometricLogin}
+              className="w-full flex items-center justify-center gap-2 border border-eif-cream-dark
+                         bg-white rounded-xl py-3 text-sm font-semibold text-eif-dark
+                         active:bg-eif-cream/60 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {bioLoading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                  Verificando…
+                </>
+              ) : (
+                <>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-eif-red shrink-0">
+                    <path d="M12 2C8.13 2 5 5.13 5 9v3c0 2.97 1.63 5.56 4 6.93V21h6v-2.07C17.37 17.56 19 14.97 19 12V9c0-3.87-3.13-7-7-7z" strokeLinejoin="round"/>
+                    <path d="M9 9a3 3 0 0 1 6 0" strokeLinecap="round"/>
+                  </svg>
+                  Entrar com Face ID / Biometria
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
       </div>
     </main>

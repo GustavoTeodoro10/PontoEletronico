@@ -61,7 +61,7 @@ export default function LoginContent() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <img src="/logo.svg" alt="e.I.F Refeições Coletivas" className="w-32 h-32 mb-4 drop-shadow-lg" />
+          <img src="/logo.png" alt="e.I.F Refeições Coletivas" className="w-32 h-32 mb-4 drop-shadow-lg object-contain" />
           <h1 className="text-eif-dark font-semibold text-xl">EIF Ponto Eletrônico</h1>
           <p className="text-eif-text text-sm mt-1">E.I.F Alimentos</p>
         </div>

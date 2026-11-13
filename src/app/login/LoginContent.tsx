@@ -64,6 +64,9 @@ export default function LoginContent() {
           <img src="/logo.png" alt="e.I.F Refeições Coletivas" className="w-32 h-32 mb-4 drop-shadow-lg object-contain" />
           <h1 className="text-eif-dark font-semibold text-xl">EIF Ponto Eletrônico</h1>
           <p className="text-eif-text text-sm mt-1">E.I.F Alimentos</p>
+          <p className="text-eif-text/60 text-xs mt-3 text-center leading-snug">
+            Acesso restrito a funcionários<br />E.I.F Alimentos
+          </p>
         </div>
 
         {/* Card */}

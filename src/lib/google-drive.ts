@@ -30,6 +30,7 @@ export async function uploadFileToDrive(
       body: Readable.from(buffer),
     },
     fields: 'id,webViewLink',
+    supportsAllDrives: true,
   });
 
   const fileId = res.data.id!;
@@ -39,6 +40,7 @@ export async function uploadFileToDrive(
   await drive.permissions.create({
     fileId,
     requestBody: { role: 'reader', type: 'anyone' },
+    supportsAllDrives: true,
   });
 
   return { fileId, webViewLink };
@@ -46,5 +48,5 @@ export async function uploadFileToDrive(
 
 export async function deleteFileFromDrive(fileId: string): Promise<void> {
   const drive = getDriveClient();
-  await drive.files.delete({ fileId });
+  await drive.files.delete({ fileId, supportsAllDrives: true });
 }

@@ -36,6 +36,7 @@ interface RelatorioData {
   registros: Registro[];
   assinatura: AssinaturaEspelho | null;
   funcionario: Funcionario | null;
+  unidade: Unidade | null;
 }
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -81,7 +82,8 @@ export default function AdminClient({
 
   async function handleDownloadPDF() {
     if (!relData) return;
-    const unidadeNome = unidades.find(u => u.id === relData.funcionario?.unidadeId)?.nome ?? '—';
+    const unidadeNome = relData.unidade?.nome ?? unidades.find(u => u.id === relData.funcionario?.unidadeId)?.nome ?? '—';
+    const jornada = relData.unidade ? { horasDia: relData.unidade.horasDia, diasSemana: relData.unidade.diasSemana } : undefined;
     const { generatePontoPDF } = await import('@/lib/generate-pdf');
     await generatePontoPDF({
       nome: relData.funcionario?.nome ?? relCpf,
@@ -93,6 +95,7 @@ export default function AdminClient({
       assinatura: relData.assinatura,
       ano: relAno,
       mes: relMes,
+      jornada,
     });
   }
 
@@ -110,8 +113,14 @@ export default function AdminClient({
   const [uniLat, setUniLat] = useState('');
   const [uniLon, setUniLon] = useState('');
   const [uniRaio, setUniRaio] = useState('200');
+  const [uniHorasDia, setUniHorasDia] = useState('8');
+  const [uniDiasSemana, setUniDiasSemana] = useState<number[]>([1,2,3,4,5]);
   const [uniLoading, setUniLoading] = useState(false);
   const [uniMsg, setUniMsg] = useState('');
+
+  function toggleDiaSemana(d: number) {
+    setUniDiasSemana(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort((a,b) => a-b));
+  }
 
   function abrirFormUnidade(u?: Unidade) {
     setUniMsg('');
@@ -123,6 +132,8 @@ export default function AdminClient({
       setUniLat(String(u.lat));
       setUniLon(String(u.lon));
       setUniRaio(String(u.raioMetros));
+      setUniHorasDia(String(u.horasDia ?? 8));
+      setUniDiasSemana(u.diasSemana?.length ? u.diasSemana : [1,2,3,4,5]);
     } else {
       setUniEditing(null);
       setUniNome('');
@@ -131,6 +142,8 @@ export default function AdminClient({
       setUniLat('');
       setUniLon('');
       setUniRaio('200');
+      setUniHorasDia('8');
+      setUniDiasSemana([1,2,3,4,5]);
     }
     setUniFormOpen(true);
   }
@@ -140,7 +153,8 @@ export default function AdminClient({
     setUniMsg('');
     setUniLoading(true);
     try {
-      const payload = { nome: uniNome, empresa: uniEmpresa, endereco: uniEndereco, lat: uniLat, lon: uniLon, raioMetros: uniRaio };
+      const horasDia = parseFloat(uniHorasDia) || 8;
+      const payload = { nome: uniNome, empresa: uniEmpresa, endereco: uniEndereco, lat: uniLat, lon: uniLon, raioMetros: uniRaio, horasDia, diasSemana: uniDiasSemana };
       if (uniEditing) {
         const res = await fetch(`/api/admin/unidades/${uniEditing.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const json = await res.json();
@@ -150,7 +164,7 @@ export default function AdminClient({
         const res = await fetch('/api/admin/unidades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const json = await res.json();
         if (!res.ok) { setUniMsg(`Erro: ${json.error}`); return; }
-        setUniList(prev => [...prev, { id: json.id, nome: uniNome, empresa: uniEmpresa, endereco: uniEndereco, lat: parseFloat(uniLat), lon: parseFloat(uniLon), raioMetros: parseInt(uniRaio), ativo: true }]);
+        setUniList(prev => [...prev, { id: json.id, nome: uniNome, empresa: uniEmpresa, endereco: uniEndereco, lat: parseFloat(uniLat), lon: parseFloat(uniLon), raioMetros: parseInt(uniRaio), ativo: true, horasDia, diasSemana: uniDiasSemana }]);
       }
       setUniMsg(uniEditing ? 'Unidade atualizada!' : 'Unidade criada!');
       setTimeout(() => { setUniFormOpen(false); setUniMsg(''); }, 1500);
@@ -941,7 +955,8 @@ export default function AdminClient({
 
             {/* Resultado */}
             {relData && (() => {
-              const banco = calcularBancoHorasMes(relData.registros, relAno, relMes);
+              const relJornada = relData.unidade ? { horasDia: relData.unidade.horasDia, diasSemana: relData.unidade.diasSemana } : undefined;
+              const banco = calcularBancoHorasMes(relData.registros, relAno, relMes, relJornada);
               const byDay: Record<string, Registro[]> = {};
               for (const r of relData.registros) {
                 const day = r.dataHora.slice(0, 10);
@@ -1107,6 +1122,24 @@ export default function AdminClient({
                       className="flex-1 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40" />
                     <span className="text-xs text-eif-text shrink-0">metros</span>
                   </div>
+                  {/* Jornada */}
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="1" max="24" step="0.5" placeholder="Horas/dia" value={uniHorasDia} onChange={e => setUniHorasDia(e.target.value)} required
+                      className="flex-1 border border-eif-cream-dark rounded-xl px-3 py-2.5 text-sm text-eif-dark focus:outline-none focus:ring-2 focus:ring-eif-red/40" />
+                    <span className="text-xs text-eif-text shrink-0">h/dia</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-xs font-semibold text-eif-text uppercase tracking-wide">Dias de trabalho</p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {(['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'] as const).map((label, idx) => (
+                        <button key={idx} type="button"
+                          onClick={() => toggleDiaSemana(idx)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${uniDiasSemana.includes(idx) ? 'bg-eif-red text-white border-eif-red' : 'bg-white text-eif-text border-eif-cream-dark hover:border-eif-red/50'}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   {uniMsg && (
                     <p className={`text-xs rounded-lg px-3 py-2 ${uniMsg.startsWith('Erro') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>{uniMsg}</p>
                   )}
@@ -1163,10 +1196,10 @@ export default function AdminClient({
                       </button>
                     </div>
                   </div>
-                  <div className="border-t border-eif-cream-mid px-4 py-2 flex gap-4 text-xs text-eif-text">
-                    <span>Lat: {u.lat}</span>
-                    <span>Lon: {u.lon}</span>
+                  <div className="border-t border-eif-cream-mid px-4 py-2 flex gap-4 text-xs text-eif-text flex-wrap">
                     <span>Raio: {u.raioMetros}m</span>
+                    <span>{u.horasDia ?? 8}h/dia</span>
+                    <span>{(['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'] as const).filter((_,i) => (u.diasSemana ?? [1,2,3,4,5]).includes(i)).join(', ')}</span>
                   </div>
                 </div>
               ))}

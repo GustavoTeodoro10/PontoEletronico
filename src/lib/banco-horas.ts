@@ -1,11 +1,11 @@
 import type { Registro, BancoHorasDia, BancoHorasMes } from '@/types';
 
-const HORAS_ESPERADAS_DIA = 8;
-
-function isUtilDay(date: Date): boolean {
-  const dow = date.getDay();
-  return dow >= 1 && dow <= 5; // Mon–Fri
+export interface Jornada {
+  horasDia: number;
+  diasSemana: number[];
 }
+
+const DEFAULT_JORNADA: Jornada = { horasDia: 8, diasSemana: [1, 2, 3, 4, 5] };
 
 /** Returns hours worked in a list of registros for a single day, using paired punches. */
 export function calcularHorasDia(registros: Registro[]): number {
@@ -33,8 +33,16 @@ export function calcularHorasDia(registros: Registro[]): number {
 export function calcularBancoHorasMes(
   registros: Registro[],
   ano: number,
-  mes: number
+  mes: number,
+  jornada?: Jornada
 ): BancoHorasMes {
+  const { horasDia, diasSemana } = jornada ?? DEFAULT_JORNADA;
+  const diasUteis = new Set(diasSemana);
+
+  function isUtilDay(date: Date): boolean {
+    return diasUteis.has(date.getDay());
+  }
+
   const prefix = `${ano}-${String(mes).padStart(2, '0')}`;
 
   // Group registros by day
@@ -51,7 +59,7 @@ export function calcularBancoHorasMes(
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(ano, mes - 1, d);
-    if (isUtilDay(dt)) totalEsperado += HORAS_ESPERADAS_DIA;
+    if (isUtilDay(dt)) totalEsperado += horasDia;
   }
 
   // Build per-day details
@@ -59,7 +67,7 @@ export function calcularBancoHorasMes(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([data, recs]) => {
       const dt = new Date(data + 'T12:00:00');
-      const esperado = isUtilDay(dt) ? HORAS_ESPERADAS_DIA : 0;
+      const esperado = isUtilDay(dt) ? horasDia : 0;
       const trabalhado = calcularHorasDia(recs);
       return {
         data,

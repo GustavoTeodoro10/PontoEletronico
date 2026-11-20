@@ -24,6 +24,8 @@ export interface Unidade {
   lon: number;
   raioMetros: number;
   ativo: boolean;
+  horasDia: number;      // horas esperadas por dia (default 8)
+  diasSemana: number[];  // dias úteis: 0=Dom,1=Seg,...,6=Sáb (default [1,2,3,4,5])
 }
 
 export interface Registro {

@@ -8,11 +8,13 @@ export async function POST(req: NextRequest) {
   if (session.user.role !== 'admin') return NextResponse.json({ error: 'Sem permissão.' }, { status: 403 });
 
   const body = await req.json();
-  const { nome, empresa, endereco, lat, lon, raioMetros } = body;
+  const { nome, empresa, endereco, lat, lon, raioMetros, horasDia, diasSemana } = body;
 
   if (!nome || !empresa || !endereco || lat === undefined || lon === undefined) {
     return NextResponse.json({ error: 'Campos obrigatórios: nome, empresa, endereço, lat, lon.' }, { status: 400 });
   }
+
+  const dias = Array.isArray(diasSemana) ? diasSemana.map(Number).filter(n => n >= 0 && n <= 6) : [1,2,3,4,5];
 
   try {
     const id = await appendUnidade({
@@ -23,6 +25,8 @@ export async function POST(req: NextRequest) {
       lon: parseFloat(lon),
       raioMetros: parseInt(raioMetros) || 200,
       ativo: true,
+      horasDia: parseFloat(horasDia) || 8,
+      diasSemana: dias.length ? dias : [1,2,3,4,5],
     });
     return NextResponse.json({ ok: true, id });
   } catch (err) {

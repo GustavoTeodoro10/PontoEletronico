@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getRegistrosByMonth, getAssinaturaEspelho, getFuncionarioByCPF } from '@/lib/google-sheets';
+import { getRegistrosByMonth, getAssinaturaEspelho, getFuncionarioByCPF, getUnidadeById } from '@/lib/google-sheets';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
       getAssinaturaEspelho(cpf, ano, mes),
       getFuncionarioByCPF(cpf),
     ]);
-    return NextResponse.json({ registros, assinatura, funcionario });
+    const unidade = funcionario ? await getUnidadeById(funcionario.unidadeId) : null;
+    return NextResponse.json({ registros, assinatura, funcionario, unidade });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: msg }, { status: 500 });

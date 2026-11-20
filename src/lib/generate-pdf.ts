@@ -1,5 +1,5 @@
 import type { Registro, AssinaturaEspelho } from '@/types';
-import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
+import { calcularBancoHorasMes, formatHoras, type Jornada } from '@/lib/banco-horas';
 import EIF_LOGO from '@/lib/eif-logo';
 
 const MESES = [
@@ -28,13 +28,14 @@ export interface PDFParams {
   assinatura: AssinaturaEspelho | null;
   ano: number;
   mes: number;
+  jornada?: Jornada;
 }
 
 export async function generatePontoPDF(p: PDFParams): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
 
-  const { nome, cpf, matricula, cargo, unidadeNome, registros, assinatura, ano, mes } = p;
+  const { nome, cpf, matricula, cargo, unidadeNome, registros, assinatura, ano, mes, jornada } = p;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -120,7 +121,7 @@ export async function generatePontoPDF(p: PDFParams): Promise<void> {
   y += Math.ceil(infoItems.length / 2) * 6 + 6;
 
   // ── BANCO DE HORAS SUMMARY ────────────────────────────────────────────────
-  const banco = calcularBancoHorasMes(registros, ano, mes);
+  const banco = calcularBancoHorasMes(registros, ano, mes, jornada);
 
   const byDay: Record<string, Registro[]> = {};
   for (const r of registros) {

@@ -146,9 +146,11 @@ export async function updateFuncionarioSenha(cpf: string, novaHash: string): Pro
 }
 
 // ── Unidades ───────────────────────────────────────────────────────────────
-// Columns: ID | Nome | Empresa | Endereco | Lat | Lon | RaioMetros | Ativo
+// Columns: ID | Nome | Empresa | Endereco | Lat | Lon | RaioMetros | Ativo | HorasDia | DiasSemana
 
 function rowToUnidade(r: string[]): Unidade {
+  const diasRaw = r[9] || '1,2,3,4,5';
+  const diasSemana = diasRaw.split(',').map(Number).filter(n => n >= 0 && n <= 6);
   return {
     id:          r[0] || '',
     nome:        r[1] || '',
@@ -158,6 +160,8 @@ function rowToUnidade(r: string[]): Unidade {
     lon:         parseFloat(r[5]) || 0,
     raioMetros:  parseInt(r[6]) || 200,
     ativo:       r[7] !== 'FALSE',
+    horasDia:    parseFloat(r[8]) || 8,
+    diasSemana:  diasSemana.length ? diasSemana : [1,2,3,4,5],
   };
 }
 
@@ -174,7 +178,8 @@ export async function getUnidadeById(id: string): Promise<Unidade | null> {
 
 export async function appendUnidade(data: Omit<Unidade, 'id'>): Promise<string> {
   const id = `u${Date.now()}`;
-  await appendRow(TABS.unidades, [id, data.nome, data.empresa, data.endereco, data.lat, data.lon, data.raioMetros, data.ativo ? 'TRUE' : 'FALSE']);
+  const diasStr = (data.diasSemana ?? [1,2,3,4,5]).join(',');
+  await appendRow(TABS.unidades, [id, data.nome, data.empresa, data.endereco, data.lat, data.lon, data.raioMetros, data.ativo ? 'TRUE' : 'FALSE', data.horasDia ?? 8, diasStr]);
   return id;
 }
 
@@ -184,7 +189,8 @@ export async function updateUnidade(id: string, data: Partial<Omit<Unidade, 'id'
   if (idx === -1) throw new Error('Unidade não encontrada.');
   const current = rowToUnidade(rows[idx]);
   const updated: Unidade = { ...current, ...data };
-  await updateRow(TABS.unidades, idx, [updated.id, updated.nome, updated.empresa, updated.endereco, updated.lat, updated.lon, updated.raioMetros, updated.ativo ? 'TRUE' : 'FALSE']);
+  const diasStr = updated.diasSemana.join(',');
+  await updateRow(TABS.unidades, idx, [updated.id, updated.nome, updated.empresa, updated.endereco, updated.lat, updated.lon, updated.raioMetros, updated.ativo ? 'TRUE' : 'FALSE', updated.horasDia, diasStr]);
 }
 
 // ── Distance helper (Haversine) ────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Registro, AssinaturaEspelho, Justificativa, Atestado } from '@/types';
+import type { Registro, AssinaturaEspelho, Justificativa, Atestado, Unidade } from '@/types';
 import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
 import EIF_LOGO from '@/lib/eif-logo';
 
@@ -20,6 +20,7 @@ interface Props {
   cpf: string;
   cargo: string;
   matricula: string;
+  unidade: Unidade | null;
   registros: Registro[];
   justificativas: Justificativa[];
   atestados: Atestado[];
@@ -31,7 +32,7 @@ interface Props {
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricula, registros, justificativas: initialJustificativas, atestados: initialAtestados, ano, mes, assinatura: initialAssinatura }: Props) {
+export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricula, unidade, registros, justificativas: initialJustificativas, atestados: initialAtestados, ano, mes, assinatura: initialAssinatura }: Props) {
   const router = useRouter();
   const [assinatura, setAssinatura] = useState(initialAssinatura);
   const [assinando, setAssinando] = useState(false);
@@ -67,6 +68,8 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
 
   const unidadeNome = registros[0]?.unidadeNome ?? '';
 
+  const jornada = unidade ? { horasDia: unidade.horasDia, diasSemana: unidade.diasSemana } : undefined;
+
   async function handleBaixarPDF() {
     setBaixandoPDF(true);
     try {
@@ -81,6 +84,7 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
         assinatura,
         ano,
         mes,
+        jornada,
       });
     } finally {
       setBaixandoPDF(false);
@@ -267,7 +271,7 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
   const days = Object.keys(byDay).sort();
 
   // Banco de horas
-  const banco = calcularBancoHorasMes(registros, ano, mes);
+  const banco = calcularBancoHorasMes(registros, ano, mes, jornada);
   const bancoByDay: Record<string, number> = {};
   for (const d of banco.detalhesPorDia) bancoByDay[d.data] = d.horasTrabalhadas;
 

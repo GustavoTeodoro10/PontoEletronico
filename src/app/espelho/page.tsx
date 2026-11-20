@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { getRegistrosByMonth, getAssinaturaEspelho, getJustificativasByMonth, getAtestadosByCPF } from '@/lib/google-sheets';
+import { getRegistrosByMonth, getAssinaturaEspelho, getJustificativasByMonth, getAtestadosByCPF, getUnidadeById } from '@/lib/google-sheets';
 import EspelhoClient from './EspelhoClient';
 
 export const instant = false;
@@ -18,11 +18,12 @@ export default async function EspelhoPage({
   const ano    = parseInt(params.ano  || String(hoje.getFullYear()));
   const mes    = parseInt(params.mes  || String(hoje.getMonth() + 1));
 
-  const [registros, assinatura, justificativas, atestados] = await Promise.all([
+  const [registros, assinatura, justificativas, atestados, unidade] = await Promise.all([
     getRegistrosByMonth(session.user.cpf, ano, mes),
     getAssinaturaEspelho(session.user.cpf, ano, mes),
     getJustificativasByMonth(session.user.cpf, ano, mes),
     getAtestadosByCPF(session.user.cpf),
+    getUnidadeById(session.user.unidadeId),
   ]);
 
   return (
@@ -32,6 +33,7 @@ export default async function EspelhoPage({
       cpf={session.user.cpf}
       cargo={session.user.cargo ?? ''}
       matricula={session.user.matricula}
+      unidade={unidade ?? null}
       registros={registros}
       justificativas={justificativas}
       atestados={atestados}

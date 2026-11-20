@@ -33,9 +33,11 @@ export async function GET(request: NextRequest) {
 
   const funcionariosUnidade = allFuncionarios.filter(f => f.unidadeId === unidadeId && f.ativo);
 
+  const jornada = { horasDia: unidade.horasDia, diasSemana: unidade.diasSemana };
+
   const funcionarios = funcionariosUnidade.map(func => {
     const registros = allRegistros.filter(r => r.cpf === func.cpf);
-    const banco = calcularBancoHorasMes(registros, ano, mes);
+    const banco = calcularBancoHorasMes(registros, ano, mes, jornada);
     return {
       funcionario: { cpf: func.cpf, nome: func.nome, matricula: func.matricula, cargo: func.cargo },
       banco,
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({
-    unidade: { id: unidade.id, nome: unidade.nome },
+    unidade: { id: unidade.id, nome: unidade.nome, horasDia: unidade.horasDia, diasSemana: unidade.diasSemana },
     funcionarios,
   });
 }

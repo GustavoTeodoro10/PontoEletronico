@@ -112,7 +112,7 @@ export default function AdminClient({
   const [uniEndereco, setUniEndereco] = useState('');
   const [uniLat, setUniLat] = useState('');
   const [uniLon, setUniLon] = useState('');
-  const [uniRaio, setUniRaio] = useState('200');
+  const [uniRaio, setUniRaio] = useState('1000');
   const [uniHorasDia, setUniHorasDia] = useState('8');
   const [uniDiasSemana, setUniDiasSemana] = useState<number[]>([1,2,3,4,5]);
   const [uniLoading, setUniLoading] = useState(false);
@@ -141,7 +141,7 @@ export default function AdminClient({
       setUniEndereco('');
       setUniLat('');
       setUniLon('');
-      setUniRaio('200');
+      setUniRaio('1000');
       setUniHorasDia('8');
       setUniDiasSemana([1,2,3,4,5]);
     }

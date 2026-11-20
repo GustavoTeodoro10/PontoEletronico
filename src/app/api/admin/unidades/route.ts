@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       endereco: String(endereco).trim(),
       lat: parseFloat(lat),
       lon: parseFloat(lon),
-      raioMetros: parseInt(raioMetros) || 200,
+      raioMetros: parseInt(raioMetros) || 1000,
       ativo: true,
       horasDia: parseFloat(horasDia) || 8,
       diasSemana: dias.length ? dias : [1,2,3,4,5],

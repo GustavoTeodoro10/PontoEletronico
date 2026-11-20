@@ -158,7 +158,7 @@ function rowToUnidade(r: string[]): Unidade {
     endereco:    r[3] || '',
     lat:         parseFloat(r[4]) || 0,
     lon:         parseFloat(r[5]) || 0,
-    raioMetros:  parseInt(r[6]) || 200,
+    raioMetros:  parseInt(r[6]) || 1000,
     ativo:       r[7] !== 'FALSE',
     horasDia:    parseFloat(r[8]) || 8,
     diasSemana:  diasSemana.length ? diasSemana : [1,2,3,4,5],

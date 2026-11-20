@@ -31,6 +31,7 @@ interface RelUniResult {
 }
 
 type Tab = 'hoje' | 'alertas' | 'justificativas' | 'atestados' | 'assinaturas' | 'relatorio' | 'relatorio_unidade' | 'funcionarios' | 'coberturas' | 'cadastrar' | 'unidades';
+type Group = 'operacional' | 'gestao' | 'relatorios';
 
 interface RelatorioData {
   registros: Registro[];
@@ -47,6 +48,7 @@ export default function AdminClient({
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('hoje');
+  const [group, setGroup] = useState<Group>('operacional');
 
   // Justificativas
   const [justificativas, setJustificativas] = useState<Justificativa[]>(initialJustificativas);
@@ -374,38 +376,82 @@ export default function AdminClient({
           <Kpi label="Fora do raio" value={foraRaio} warn={foraRaio > 0} />
         </div>
 
-        {/* Tabs */}
+        {/* Navegação A2: pills de grupo + tabs do grupo ativo */}
         {(() => {
-          const tabs: Tab[] = role === 'gestor'
-            ? ['hoje', 'alertas', 'justificativas', 'atestados', 'relatorio', 'relatorio_unidade', 'funcionarios', 'coberturas', 'cadastrar']
-            : ['hoje', 'alertas', 'justificativas', 'atestados', 'assinaturas', 'relatorio', 'relatorio_unidade', 'funcionarios', 'coberturas', 'unidades', 'cadastrar'];
+          const groupTabsMap: Record<Group, Tab[]> = {
+            operacional: role === 'gestor'
+              ? ['hoje', 'alertas', 'justificativas', 'atestados']
+              : ['hoje', 'alertas', 'justificativas', 'atestados', 'assinaturas'],
+            gestao: role === 'gestor'
+              ? ['funcionarios', 'coberturas', 'cadastrar']
+              : ['funcionarios', 'coberturas', 'unidades', 'cadastrar'],
+            relatorios: ['relatorio', 'relatorio_unidade'],
+          };
+
+          const operacionalBadge = alertasCount
+            + justificativas.filter(j => j.status === 'Pendente').length
+            + atestados.filter(a => a.status === 'Pendente').length
+            + assinaturasPendentes.length;
+
+          function handleGroupChange(g: Group) {
+            setGroup(g);
+            setTab(groupTabsMap[g][0]);
+          }
+
+          const activeTabs = groupTabsMap[group];
+
           return (
-        <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
-          {tabs.map(t => (
-            <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
-              {t === 'hoje'             ? `Hoje (${registrosHoje.length})`
-                : t === 'alertas'        ? (
-                    <span className="flex items-center gap-1">
-                      Alertas
-                      {alertasCount > 0 && (
-                        <span className="bg-red-500 text-white rounded-full text-[10px] font-bold px-1.5 leading-5 min-w-[18px] text-center">
-                          {alertasCount}
+            <div className="flex flex-col gap-2">
+              {/* Pills */}
+              <div className="bg-white rounded-2xl shadow-sm p-1 flex gap-1">
+                {(['operacional', 'gestao', 'relatorios'] as Group[]).map(g => {
+                  const badge = g === 'operacional' ? operacionalBadge : 0;
+                  return (
+                    <button key={g} onClick={() => handleGroupChange(g)}
+                      className={`flex-1 py-2 px-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1 ${
+                        group === g ? 'bg-eif-red text-white shadow-sm' : 'text-eif-text hover:bg-eif-cream-mid'
+                      }`}>
+                      {g === 'operacional' ? 'Operacional' : g === 'gestao' ? 'Gestão' : 'Relatórios'}
+                      {badge > 0 && (
+                        <span className={`rounded-full text-[10px] font-bold px-1.5 leading-5 min-w-[18px] text-center ${
+                          group === g ? 'bg-white/30 text-white' : 'bg-eif-red text-white'
+                        }`}>
+                          {badge}
                         </span>
                       )}
-                    </span>
-                  )
-                : t === 'justificativas'   ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
-                : t === 'atestados'        ? `Atestos (${atestados.filter(a => a.status === 'Pendente').length})`
-                : t === 'assinaturas'      ? `Assin. (${assinaturasPendentes.length})`
-                : t === 'relatorio'        ? 'Relatório'
-                : t === 'relatorio_unidade'? 'Rel. Unidade'
-                : t === 'funcionarios'     ? 'Funcionários'
-                : t === 'coberturas'       ? 'Coberturas'
-                : t === 'unidades'         ? 'Unidades'
-                : '+ Cadastrar'}
-            </TabBtn>
-          ))}
-        </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tabs do grupo ativo */}
+              <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
+                {activeTabs.map(t => (
+                  <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
+                    {t === 'hoje'              ? `Hoje (${registrosHoje.length})`
+                      : t === 'alertas'        ? (
+                          <span className="flex items-center gap-1">
+                            Alertas
+                            {alertasCount > 0 && (
+                              <span className="bg-red-500 text-white rounded-full text-[10px] font-bold px-1.5 leading-5 min-w-[18px] text-center">
+                                {alertasCount}
+                              </span>
+                            )}
+                          </span>
+                        )
+                      : t === 'justificativas'    ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
+                      : t === 'atestados'         ? `Atestos (${atestados.filter(a => a.status === 'Pendente').length})`
+                      : t === 'assinaturas'       ? `Assin. (${assinaturasPendentes.length})`
+                      : t === 'relatorio'         ? 'Relatório'
+                      : t === 'relatorio_unidade' ? 'Rel. Unidade'
+                      : t === 'funcionarios'      ? 'Funcionários'
+                      : t === 'coberturas'        ? 'Coberturas'
+                      : t === 'unidades'          ? 'Unidades'
+                      : '+ Cadastrar'}
+                  </TabBtn>
+                ))}
+              </div>
+            </div>
           );
         })()}
 

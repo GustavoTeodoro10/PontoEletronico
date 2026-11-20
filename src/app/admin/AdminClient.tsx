@@ -528,9 +528,17 @@ export default function AdminClient({
                         <p className="text-xs text-eif-text">
                           {new Date(j.data + 'T12:00:00').toLocaleDateString('pt-BR')} · {j.tipo}
                         </p>
+                        {j.tipo === 'Ponto esquecido' && j.pontoTipo && j.pontoHorario && (
+                          <p className="text-xs font-semibold text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-1 inline-block">
+                            Solicita: {j.pontoTipo} às {j.pontoHorario}
+                          </p>
+                        )}
                         <p className="text-sm text-eif-text mt-1">{j.descricao}</p>
                         {j.gestorResposta && (
                           <p className="text-xs text-eif-text italic mt-1">Resposta: {j.gestorResposta}</p>
+                        )}
+                        {j.status === 'Aprovada' && j.tipo === 'Ponto esquecido' && (
+                          <p className="text-xs text-green-700 mt-1">✓ Registro inserido automaticamente</p>
                         )}
                       </div>
                       <span className={`shrink-0 text-xs rounded-full px-2 py-0.5 font-medium ${

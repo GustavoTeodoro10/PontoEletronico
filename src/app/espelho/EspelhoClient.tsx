@@ -7,12 +7,15 @@ import { calcularBancoHorasMes, formatHoras } from '@/lib/banco-horas';
 import EIF_LOGO from '@/lib/eif-logo';
 
 const TIPOS_JUSTIFICATIVA = [
+  'Ponto esquecido',
   'Falta justificada',
   'Atestado médico',
   'Licença',
   'Folga compensatória',
   'Outros',
 ];
+
+const TIPOS_PONTO = ['Entrada', 'Saída Almoço', 'Entrada Almoço', 'Saída'] as const;
 
 interface Props {
   nome: string;
@@ -45,6 +48,8 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
   const [justData, setJustData] = useState('');
   const [justTipo, setJustTipo] = useState(TIPOS_JUSTIFICATIVA[0]);
   const [justDesc, setJustDesc] = useState('');
+  const [justPontoTipo, setJustPontoTipo] = useState<string>(TIPOS_PONTO[0]);
+  const [justPontoHorario, setJustPontoHorario] = useState('');
   const [justLoading, setJustLoading] = useState(false);
   const [justErro, setJustErro] = useState('');
   const [justOk, setJustOk] = useState(false);
@@ -138,12 +143,20 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
     setJustErro('');
     setJustOk(false);
     if (!justData) { setJustErro('Selecione a data.'); return; }
+    if (justTipo === 'Ponto esquecido') {
+      if (!justPontoHorario) { setJustErro('Informe o horário do ponto.'); return; }
+    }
     setJustLoading(true);
     try {
+      const body: Record<string, string> = { data: justData, tipo: justTipo, descricao: justDesc };
+      if (justTipo === 'Ponto esquecido') {
+        body.pontoTipo = justPontoTipo;
+        body.pontoHorario = justPontoHorario;
+      }
       const res = await fetch('/api/funcionario/justificar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: justData, tipo: justTipo, descricao: justDesc }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok) { setJustErro(json.error || 'Erro ao enviar.'); return; }
@@ -158,11 +171,14 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
         status: 'Pendente',
         gestorResposta: '',
         createdAt: new Date().toISOString(),
+        ...(justTipo === 'Ponto esquecido' && { pontoTipo: justPontoTipo as import('@/types').PunchType, pontoHorario: justPontoHorario }),
       };
       setJustificativas(prev => [novaJust, ...prev]);
       setJustData('');
       setJustTipo(TIPOS_JUSTIFICATIVA[0]);
       setJustDesc('');
+      setJustPontoTipo(TIPOS_PONTO[0]);
+      setJustPontoHorario('');
       setTimeout(() => { setJustOk(false); setJustOpen(false); }, 2000);
     } finally {
       setJustLoading(false);
@@ -350,7 +366,7 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
 
         {/* Expected info */}
         <p className="text-xs text-eif-text text-center -mt-2">
-          Esperado: {formatHoras(banco.totalEsperado)} (8h × dias úteis)
+          Esperado: {formatHoras(banco.totalEsperado)} ({unidade?.horasDia ?? 8}h × dias úteis)
         </p>
 
         {/* Assinatura digital */}
@@ -612,6 +628,16 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
               <form onSubmit={handleEnviarJustificativa} className="flex flex-col gap-3">
                 <p className="text-xs font-semibold text-eif-dark">Nova justificativa</p>
                 <div className="flex flex-col gap-1">
+                  <label className="text-xs text-eif-text">Tipo</label>
+                  <select
+                    value={justTipo}
+                    onChange={e => { setJustTipo(e.target.value); setJustErro(''); }}
+                    className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white focus:outline-none focus:ring-2 focus:ring-eif-red/30"
+                  >
+                    {TIPOS_JUSTIFICATIVA.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
                   <label className="text-xs text-eif-text">Data</label>
                   <input
                     type="date"
@@ -623,23 +649,45 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
                     required
                   />
                 </div>
+
+                {/* Campos extras para Ponto esquecido */}
+                {justTipo === 'Ponto esquecido' && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-3 flex flex-col gap-3">
+                    <p className="text-xs font-semibold text-amber-800">Detalhes do ponto esquecido</p>
+                    <div className="flex gap-3">
+                      <div className="flex flex-col gap-1 flex-1">
+                        <label className="text-xs text-eif-text">Tipo do ponto</label>
+                        <select
+                          value={justPontoTipo}
+                          onChange={e => setJustPontoTipo(e.target.value)}
+                          className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white focus:outline-none focus:ring-2 focus:ring-eif-red/30"
+                        >
+                          {TIPOS_PONTO.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1 w-28">
+                        <label className="text-xs text-eif-text">Horário</label>
+                        <input
+                          type="time"
+                          value={justPontoHorario}
+                          onChange={e => setJustPontoHorario(e.target.value)}
+                          className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white focus:outline-none focus:ring-2 focus:ring-eif-red/30"
+                          required={justTipo === 'Ponto esquecido'}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-eif-text">Tipo</label>
-                  <select
-                    value={justTipo}
-                    onChange={e => setJustTipo(e.target.value)}
-                    className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white focus:outline-none focus:ring-2 focus:ring-eif-red/30"
-                  >
-                    {TIPOS_JUSTIFICATIVA.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-eif-text">Descrição</label>
+                  <label className="text-xs text-eif-text">
+                    {justTipo === 'Ponto esquecido' ? 'Motivo / Observação' : 'Descrição'}
+                  </label>
                   <textarea
                     value={justDesc}
                     onChange={e => setJustDesc(e.target.value)}
                     rows={3}
-                    placeholder="Descreva o motivo da ausência…"
+                    placeholder={justTipo === 'Ponto esquecido' ? 'Ex: Esqueci de bater entrada ao chegar…' : 'Descreva o motivo da ausência…'}
                     className="w-full border border-eif-cream-mid rounded-lg px-3 py-2 text-sm text-eif-dark bg-white resize-none focus:outline-none focus:ring-2 focus:ring-eif-red/30"
                     required
                   />

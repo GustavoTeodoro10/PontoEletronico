@@ -294,20 +294,31 @@ export async function resetFuncionarioSenha(cpf: string): Promise<string> {
 }
 
 // ── Justificativas ─────────────────────────────────────────────────────────
+// Columns: ID | CPF | Nome | Data | Tipo | Descricao | Status | GestorResposta | CreatedAt | PontoTipo | PontoHorario
 export async function appendJustificativa(j: Omit<Justificativa, 'id'>): Promise<void> {
   const id = `JUS-${Date.now()}`;
   await appendRow(TABS.justificativas, [
     id, j.cpf, j.nome, j.data, j.tipo, j.descricao,
     j.status, j.gestorResposta, j.createdAt,
+    j.pontoTipo ?? '', j.pontoHorario ?? '',
   ]);
 }
 
 function rowToJustificativa(r: string[]): Justificativa {
-  return {
+  const j: Justificativa = {
     id: r[0], cpf: r[1], nome: r[2], data: r[3], tipo: r[4],
     descricao: r[5], status: (r[6] || 'Pendente') as Justificativa['status'],
     gestorResposta: r[7] || '', createdAt: r[8] || '',
   };
+  if (r[9]) j.pontoTipo = r[9] as import('@/types').PunchType;
+  if (r[10]) j.pontoHorario = r[10];
+  return j;
+}
+
+export async function getJustificativaById(id: string): Promise<Justificativa | null> {
+  const rows = await getRows(TABS.justificativas);
+  const row = rows.find(r => r[0] === id);
+  return row ? rowToJustificativa(row) : null;
 }
 
 export async function getJustificativasPendentes(): Promise<Justificativa[]> {

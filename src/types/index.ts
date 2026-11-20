@@ -53,6 +53,8 @@ export interface Justificativa {
   status: 'Pendente' | 'Aprovada' | 'Recusada';
   gestorResposta: string;
   createdAt: string;
+  pontoTipo?: PunchType;   // preenchido quando tipo === 'Ponto esquecido'
+  pontoHorario?: string;   // HH:MM
 }
 
 export interface Atestado {

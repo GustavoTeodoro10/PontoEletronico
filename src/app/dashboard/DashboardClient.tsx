@@ -100,7 +100,7 @@ export default function DashboardClient({
         {/* Top row */}
         <div className="flex items-center justify-between max-w-sm mx-auto py-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <img src={EIF_LOGO} alt="EIF" className="h-9 w-9 rounded-xl bg-white/10 object-contain p-0.5 shrink-0" />
+            <img src={EIF_LOGO} alt="EIF" className="h-9 w-9 rounded-xl bg-white object-contain p-1 shrink-0" />
             <div className="min-w-0">
               <p className="font-semibold text-sm leading-tight truncate">{funcionario.nome}</p>
               {unidade && <p className="text-xs opacity-70 truncate">{unidade.nome}</p>}

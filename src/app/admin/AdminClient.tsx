@@ -49,6 +49,7 @@ export default function AdminClient({
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('hoje');
   const [group, setGroup] = useState<Group>('operacional');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Justificativas
   const [justificativas, setJustificativas] = useState<Justificativa[]>(initialJustificativas);
@@ -349,111 +350,177 @@ export default function AdminClient({
     if (res.ok) router.refresh();
   }
 
+  const groupTabsMap: Record<Group, Tab[]> = {
+    operacional: role === 'gestor'
+      ? ['hoje', 'alertas', 'justificativas', 'atestados']
+      : ['hoje', 'alertas', 'justificativas', 'atestados', 'assinaturas'],
+    gestao: role === 'gestor'
+      ? ['funcionarios', 'coberturas', 'cadastrar']
+      : ['funcionarios', 'coberturas', 'unidades', 'cadastrar'],
+    relatorios: ['relatorio', 'relatorio_unidade'],
+  };
+  const operacionalBadge = alertasCount
+    + justificativas.filter(j => j.status === 'Pendente').length
+    + atestados.filter(a => a.status === 'Pendente').length
+    + assinaturasPendentes.length;
+  function getTabBadge(t: Tab): number {
+    if (t === 'hoje') return registrosHoje.length;
+    if (t === 'alertas') return alertasCount;
+    if (t === 'justificativas') return justificativas.filter(j => j.status === 'Pendente').length;
+    if (t === 'atestados') return atestados.filter(a => a.status === 'Pendente').length;
+    if (t === 'assinaturas') return assinaturasPendentes.length;
+    return 0;
+  }
+  const TAB_LABELS: Record<Tab, string> = {
+    hoje: 'Hoje', alertas: 'Alertas', justificativas: 'Justificativas',
+    atestados: 'Atestados', assinaturas: 'Assinaturas', relatorio: 'Relatório',
+    relatorio_unidade: 'Rel. Unidade', funcionarios: 'Funcionários',
+    coberturas: 'Coberturas', unidades: 'Unidades', cadastrar: 'Cadastrar',
+  };
+  const TAB_TITLES: Record<Tab, string> = {
+    hoje: 'Registros de Hoje', alertas: 'Alertas', justificativas: 'Justificativas',
+    atestados: 'Atestados', assinaturas: 'Assinaturas Pendentes',
+    relatorio: 'Relatório de Horas', relatorio_unidade: 'Relatório por Unidade',
+    funcionarios: 'Funcionários', coberturas: 'Coberturas',
+    unidades: 'Unidades', cadastrar: 'Cadastrar Funcionário',
+  };
+
   return (
-    <main className="min-h-dvh flex flex-col bg-eif-cream pb-safe">
-      {/* Header */}
-      <header className="bg-eif-red text-white px-4 pt-safe pb-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-3 mb-1">
-            <button onClick={() => router.push('/dashboard')} className="text-white/80 hover:text-white">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <h1 className="font-semibold text-lg">Painel {role === 'admin' ? 'Admin' : 'Gestor'}</h1>
+    <div className="h-dvh overflow-hidden flex bg-gray-100">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-white border-r border-gray-100
+        transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:static md:translate-x-0 md:z-auto md:shadow-none
+      `}>
+        {/* Logo Header */}
+        <div className="bg-eif-red px-4 py-4 flex items-center gap-3 shrink-0">
+          <img src={EIF_LOGO} alt="EIF" className="h-9 w-9 rounded-xl bg-white object-contain p-1 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-white font-semibold text-sm leading-tight truncate">E.I.F Alimentos</p>
+            <p className="text-white/70 text-xs">Painel {role === 'admin' ? 'Admin' : 'Gestor'}</p>
           </div>
-          <p className="text-sm opacity-80">
+          <button onClick={() => setSidebarOpen(false)} className="text-white/70 hover:text-white md:hidden shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* KPIs */}
+        <div className="px-3 py-3 border-b border-gray-100 shrink-0">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-eif-cream rounded-xl px-2 py-2 text-center">
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-eif-text leading-tight">Funcion.</p>
+              <p className="font-bold text-xl text-eif-dark tabular-nums mt-0.5">{totalFuncionarios}</p>
+            </div>
+            <div className="bg-eif-red rounded-xl px-2 py-2 text-center">
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-white/70 leading-tight">Presentes</p>
+              <p className="font-bold text-xl text-white tabular-nums mt-0.5">{presentes}</p>
+            </div>
+            <div className={`rounded-xl px-2 py-2 text-center ${foraRaio > 0 ? 'bg-amber-50' : 'bg-eif-cream'}`}>
+              <p className="text-[9px] font-semibold uppercase tracking-widest text-eif-text leading-tight">Fora raio</p>
+              <p className={`font-bold text-xl tabular-nums mt-0.5 ${foraRaio > 0 ? 'text-eif-amber' : 'text-eif-dark'}`}>{foraRaio}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-2 px-2">
+          {(['operacional', 'gestao', 'relatorios'] as Group[]).map(g => {
+            const gBadge = g === 'operacional' ? operacionalBadge : 0;
+            const gTabs = groupTabsMap[g];
+            const gLabel = g === 'operacional' ? 'Operacional' : g === 'gestao' ? 'Gestão' : 'Relatórios';
+            return (
+              <div key={g} className="mb-1">
+                <button
+                  onClick={() => { setGroup(g); setTab(gTabs[0]); setSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition ${
+                    group === g ? 'text-eif-red' : 'text-eif-text hover:bg-eif-cream'
+                  }`}
+                >
+                  <span>{gLabel}</span>
+                  {gBadge > 0 && (
+                    <span className="bg-eif-red text-white rounded-full text-[10px] font-bold px-1.5 leading-5 min-w-[18px] text-center">
+                      {gBadge}
+                    </span>
+                  )}
+                </button>
+                {group === g && (
+                  <div className="mt-0.5 ml-2 flex flex-col gap-0.5">
+                    {gTabs.map(t => {
+                      const tBadge = getTabBadge(t);
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => { setTab(t); setSidebarOpen(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition border-l-2 ${
+                            tab === t
+                              ? 'bg-eif-red/10 text-eif-red font-semibold border-eif-red'
+                              : 'text-eif-text hover:bg-eif-cream border-transparent'
+                          }`}
+                        >
+                          <span>{TAB_LABELS[t]}</span>
+                          {tBadge > 0 && (
+                            <span className={`rounded-full text-[10px] font-bold px-1.5 leading-5 min-w-[18px] text-center ${
+                              tab === t ? 'bg-eif-red text-white' : 'bg-eif-red/20 text-eif-red'
+                            }`}>
+                              {tBadge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="px-3 py-3 border-t border-gray-100 shrink-0">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-eif-text hover:bg-eif-cream transition font-medium"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Voltar ao Ponto
+          </button>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobile header */}
+        <header className="bg-eif-red text-white px-4 pt-safe pb-3 flex items-center gap-3 md:hidden shrink-0">
+          <button onClick={() => setSidebarOpen(true)} className="text-white/80 hover:text-white shrink-0">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+          </button>
+          <h1 className="font-semibold text-base truncate">{TAB_TITLES[tab]}</h1>
+        </header>
+
+        {/* Desktop top bar */}
+        <div className="hidden md:flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shrink-0">
+          <h1 className="font-semibold text-lg text-eif-dark">{TAB_TITLES[tab]}</h1>
+          <p className="text-sm text-eif-text">
             {new Date(hoje + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
-      </header>
 
-      <div className="flex-1 px-4 py-6 max-w-2xl mx-auto w-full flex flex-col gap-6">
-        {/* KPIs */}
-        <div className="bg-white rounded-2xl shadow-sm flex divide-x divide-eif-cream-mid overflow-hidden">
-          <Kpi label="Funcionários" value={totalFuncionarios} />
-          <Kpi label="Presentes hoje" value={presentes} accent />
-          <Kpi label="Fora do raio" value={foraRaio} warn={foraRaio > 0} />
-        </div>
-
-        {/* Navegação A2: pills de grupo + tabs do grupo ativo */}
-        {(() => {
-          const groupTabsMap: Record<Group, Tab[]> = {
-            operacional: role === 'gestor'
-              ? ['hoje', 'alertas', 'justificativas', 'atestados']
-              : ['hoje', 'alertas', 'justificativas', 'atestados', 'assinaturas'],
-            gestao: role === 'gestor'
-              ? ['funcionarios', 'coberturas', 'cadastrar']
-              : ['funcionarios', 'coberturas', 'unidades', 'cadastrar'],
-            relatorios: ['relatorio', 'relatorio_unidade'],
-          };
-
-          const operacionalBadge = alertasCount
-            + justificativas.filter(j => j.status === 'Pendente').length
-            + atestados.filter(a => a.status === 'Pendente').length
-            + assinaturasPendentes.length;
-
-          function handleGroupChange(g: Group) {
-            setGroup(g);
-            setTab(groupTabsMap[g][0]);
-          }
-
-          const activeTabs = groupTabsMap[group];
-
-          return (
-            <div className="flex flex-col gap-2">
-              {/* Pills */}
-              <div className="bg-white rounded-2xl shadow-sm p-1 flex gap-1">
-                {(['operacional', 'gestao', 'relatorios'] as Group[]).map(g => {
-                  const badge = g === 'operacional' ? operacionalBadge : 0;
-                  return (
-                    <button key={g} onClick={() => handleGroupChange(g)}
-                      className={`flex-1 py-2 px-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1 ${
-                        group === g ? 'bg-eif-red text-white shadow-sm' : 'text-eif-text hover:bg-eif-cream-mid'
-                      }`}>
-                      {g === 'operacional' ? 'Operacional' : g === 'gestao' ? 'Gestão' : 'Relatórios'}
-                      {badge > 0 && (
-                        <span className={`rounded-full text-[10px] font-bold px-1.5 leading-5 min-w-[18px] text-center ${
-                          group === g ? 'bg-white/30 text-white' : 'bg-eif-red text-white'
-                        }`}>
-                          {badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Tabs do grupo ativo */}
-              <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border-b border-eif-cream-mid">
-                {activeTabs.map(t => (
-                  <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>
-                    {t === 'hoje'              ? `Hoje (${registrosHoje.length})`
-                      : t === 'alertas'        ? (
-                          <span className="flex items-center gap-1">
-                            Alertas
-                            {alertasCount > 0 && (
-                              <span className="bg-red-500 text-white rounded-full text-[10px] font-bold px-1.5 leading-5 min-w-[18px] text-center">
-                                {alertasCount}
-                              </span>
-                            )}
-                          </span>
-                        )
-                      : t === 'justificativas'    ? `Justif. (${justificativas.filter(j => j.status === 'Pendente').length})`
-                      : t === 'atestados'         ? `Atestos (${atestados.filter(a => a.status === 'Pendente').length})`
-                      : t === 'assinaturas'       ? `Assin. (${assinaturasPendentes.length})`
-                      : t === 'relatorio'         ? 'Relatório'
-                      : t === 'relatorio_unidade' ? 'Rel. Unidade'
-                      : t === 'funcionarios'      ? 'Funcionários'
-                      : t === 'coberturas'        ? 'Coberturas'
-                      : t === 'unidades'          ? 'Unidades'
-                      : '+ Cadastrar'}
-                  </TabBtn>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="max-w-4xl mx-auto flex flex-col gap-5">
 
         {/* Tab: Hoje */}
         {tab === 'hoje' && (
@@ -1031,7 +1098,7 @@ export default function AdminClient({
                   <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                     {/* Banda vermelha com logo e título */}
                     <div className="bg-eif-red px-4 py-3 flex items-center gap-3">
-                      <img src={EIF_LOGO} alt="EIF" className="h-9 w-9 rounded-lg bg-white/10 object-contain p-0.5 shrink-0" />
+                      <img src={EIF_LOGO} alt="EIF" className="h-9 w-9 rounded-lg bg-white object-contain p-1 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-semibold text-sm leading-tight">E.I.F Alimentos</p>
                         <p className="text-white/70 text-[10px] uppercase tracking-wider">Sistema de Ponto Eletrônico</p>
@@ -1308,33 +1375,10 @@ export default function AdminClient({
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
-    </main>
-  );
-}
-
-function Kpi({ label, value, accent, warn }: { label: string; value: number; accent?: boolean; warn?: boolean }) {
-  return (
-    <div className={`flex-1 px-4 py-4 text-center ${accent ? 'bg-eif-red' : ''}`}>
-      <p className={`text-[10px] font-semibold uppercase tracking-widest ${accent ? 'text-white/70' : 'text-eif-text'}`}>
-        {label}
-      </p>
-      <p className={`font-bold text-3xl mt-1 tabular-nums ${warn ? 'text-eif-amber' : accent ? 'text-white' : 'text-eif-dark'}`}>
-        {value}
-      </p>
     </div>
   );
 }
 
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-none px-4 py-3 text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
-        active ? 'border-eif-red text-eif-red' : 'border-transparent text-eif-text hover:text-eif-dark'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}

@@ -296,37 +296,47 @@ export default function EspelhoClient({ nome, nomeCompleto, cpf, cargo, matricul
   return (
     <main className="min-h-dvh flex flex-col bg-eif-cream pb-safe">
       {/* Header */}
-      <header className="bg-eif-red text-white px-4 pt-safe pb-4">
-        <div className="max-w-sm mx-auto">
-          <div className="flex items-center gap-3 mb-1">
-            <button onClick={() => router.back()} className="text-white/80 hover:text-white shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <img src={EIF_LOGO} alt="EIF" className="h-8 w-8 rounded-lg bg-white/10 object-contain p-0.5 shrink-0" />
-            <h1 className="font-semibold text-lg flex-1">Espelho do Ponto</h1>
-            <button
-              onClick={handleBaixarPDF}
-              disabled={baixandoPDF}
-              title="Baixar PDF do espelho"
-              className="text-white/80 hover:text-white disabled:opacity-50 transition flex items-center gap-1.5 text-xs font-medium"
-            >
-              {baixandoPDF ? (
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 16l-4-4h3V4h2v8h3l-4 4z" />
-                  <path d="M4 18h16" strokeLinecap="round" />
-                </svg>
-              )}
-              PDF
-            </button>
+      <header className="bg-eif-red text-white px-4 pt-safe">
+        {/* Top row */}
+        <div className="flex items-center justify-between max-w-sm mx-auto py-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src={EIF_LOGO} alt="EIF" className="h-9 w-9 rounded-xl bg-white/10 object-contain p-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold text-sm leading-tight truncate">{nome}</p>
+              {unidade && <p className="text-xs opacity-70 truncate">{unidade.nome}</p>}
+            </div>
           </div>
-          <p className="text-sm opacity-80">{nome} · Mat. {matricula}</p>
+          <button
+            onClick={handleBaixarPDF}
+            disabled={baixandoPDF}
+            title="Baixar PDF do espelho"
+            className="text-white/80 hover:text-white disabled:opacity-50 transition flex items-center gap-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 shrink-0"
+          >
+            {baixandoPDF ? (
+              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 16l-4-4h3V4h2v8h3l-4 4z" />
+                <path d="M4 18h16" strokeLinecap="round" />
+              </svg>
+            )}
+            PDF
+          </button>
+        </div>
+        {/* Tab bar */}
+        <div className="flex max-w-sm mx-auto">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex-1 py-2.5 text-xs font-bold tracking-widest uppercase border-b-2 border-transparent text-white/50 hover:text-white/70 transition"
+          >
+            Marcar Ponto
+          </button>
+          <button className="flex-1 py-2.5 text-xs font-bold tracking-widest uppercase border-b-2 border-white text-white">
+            Espelho
+          </button>
         </div>
       </header>
 

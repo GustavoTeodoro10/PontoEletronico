@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import SlideButton from '@/components/SlideButton';
 import type { Unidade, Registro, PunchType } from '@/types';
+import EIF_LOGO from '@/lib/eif-logo';
 
 const CICLO: PunchType[] = ['Entrada', 'Saída Almoço', 'Entrada Almoço', 'Saída'];
 
@@ -93,16 +94,19 @@ export default function DashboardClient({
   }
 
   return (
-    <main className="min-h-dvh flex flex-col bg-eif-cream pb-safe">
+    <main className="min-h-dvh flex flex-col bg-eif-cream">
       {/* Header */}
-      <header className="bg-eif-red text-white px-4 pt-safe pb-4">
-        <div className="flex items-center justify-between max-w-sm mx-auto">
-          <div>
-            <p className="text-xs opacity-70 font-medium uppercase tracking-wide">Olá,</p>
-            <h1 className="font-semibold text-lg leading-tight">{funcionario.primeiroNome}</h1>
-            {unidade && <p className="text-xs opacity-80 mt-0.5">{unidade.nome}</p>}
+      <header className="bg-eif-red text-white px-4 pt-safe">
+        {/* Top row */}
+        <div className="flex items-center justify-between max-w-sm mx-auto py-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src={EIF_LOGO} alt="EIF" className="h-9 w-9 rounded-xl bg-white/10 object-contain p-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold text-sm leading-tight truncate">{funcionario.nome}</p>
+              {unidade && <p className="text-xs opacity-70 truncate">{unidade.nome}</p>}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             {(funcionario.role === 'admin' || funcionario.role === 'gestor') && (
               <button
                 onClick={() => router.push('/admin')}
@@ -119,10 +123,22 @@ export default function DashboardClient({
             </button>
           </div>
         </div>
+        {/* Tab bar */}
+        <div className="flex max-w-sm mx-auto">
+          <button className="flex-1 py-2.5 text-xs font-bold tracking-widest uppercase border-b-2 border-white text-white">
+            Marcar Ponto
+          </button>
+          <button
+            onClick={() => router.push('/espelho')}
+            className="flex-1 py-2.5 text-xs font-bold tracking-widest uppercase border-b-2 border-transparent text-white/50 hover:text-white/70 transition"
+          >
+            Espelho
+          </button>
+        </div>
       </header>
 
-      <div className="flex-1 px-4 py-6 max-w-sm mx-auto w-full flex flex-col gap-6">
-        {/* Clock */}
+      <div className="flex-1 px-4 py-6 max-w-sm mx-auto w-full flex flex-col gap-5 pb-36">
+        {/* Date + Clock */}
         <div className="text-center">
           <p className="text-eif-text text-sm">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           <p className="text-eif-dark font-semibold text-5xl tabular-nums mt-1">{hora}</p>
@@ -131,7 +147,6 @@ export default function DashboardClient({
         {/* Próximo tipo */}
         <div className="bg-white rounded-2xl shadow-sm p-5 text-center">
           <p className="text-[10px] text-eif-text font-semibold uppercase tracking-widest mb-4">Próximo Registro</p>
-          {/* Cycle progress indicator */}
           <div className="flex items-center justify-center mb-4">
             {CICLO.map((_, i) => (
               <div key={i} className="flex items-center">
@@ -162,20 +177,8 @@ export default function DashboardClient({
           </div>
         )}
 
-        {/* Slide Button */}
-        <div>
-          <SlideButton
-            label={`Deslize para registrar ${tipo}`}
-            onConfirm={handlePunch}
-            disabled={loading}
-          />
-          <p className="text-center text-xs text-eif-text mt-2">
-            Segure no final por 3 segundos para confirmar
-          </p>
-        </div>
-
         {/* Registros de hoje */}
-        {registros.length > 0 && (
+        {registros.length > 0 ? (
           <div>
             <p className="text-xs font-semibold text-eif-text uppercase tracking-wide mb-2">Hoje</p>
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden divide-y divide-eif-cream-mid">
@@ -192,16 +195,22 @@ export default function DashboardClient({
               ))}
             </div>
           </div>
+        ) : (
+          <p className="text-center text-eif-text text-sm py-4">Sem marcações hoje.</p>
         )}
+      </div>
 
-        {/* Quick links */}
-        <div className="flex gap-3">
-          <button
-            onClick={() => router.push('/espelho')}
-            className="flex-1 bg-white rounded-xl shadow-sm py-3 text-sm font-medium text-eif-red border border-eif-cream-dark hover:bg-eif-cream transition"
-          >
-            Espelho do Ponto
-          </button>
+      {/* Botão fixo no rodapé */}
+      <div className="fixed bottom-0 left-0 right-0 bg-eif-cream/95 backdrop-blur-sm border-t border-eif-cream-mid shadow-[0_-4px_20px_rgba(0,0,0,0.07)] px-4 pt-3 pb-safe">
+        <div className="max-w-sm mx-auto pb-3">
+          <SlideButton
+            label={`Deslize para registrar ${tipo}`}
+            onConfirm={handlePunch}
+            disabled={loading}
+          />
+          <p className="text-center text-xs text-eif-text mt-2">
+            Segure no final por 3 segundos para confirmar
+          </p>
         </div>
       </div>
     </main>

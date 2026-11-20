@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 type SlideState = 'idle' | 'dragging' | 'countdown' | 'done';
 
@@ -117,33 +118,35 @@ export default function SlideButton({ label, onConfirm, disabled, color = 'red' 
   const isDone = state === 'done';
   const countdownNum = Math.ceil(countdown / 1000);
 
+  const overlay = state === 'countdown' ? (
+    <div className="fixed inset-0 z-[9999] bg-black/75 flex flex-col items-center justify-center pointer-events-none select-none" style={{ backdropFilter: 'blur(8px)' }}>
+      <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-8">
+        {label.replace('Deslize para registrar ', '')}
+      </p>
+      <p className="text-white font-bold leading-none" style={{ fontSize: '128px', lineHeight: 1 }}>
+        {countdownNum}
+      </p>
+      {/* Circular arc */}
+      <div className="mt-10">
+        <svg width="64" height="64" style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,0.15)" strokeWidth="4" fill="none" />
+          <circle cx="32" cy="32" r="26"
+            stroke="white"
+            strokeWidth="4" fill="none"
+            strokeDasharray={2 * Math.PI * 26}
+            strokeDashoffset={2 * Math.PI * 26 * (1 - arcPct)}
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+      <p className="text-white/30 text-xs mt-6">Solte para cancelar</p>
+    </div>
+  ) : null;
+
   return (
     <>
-      {/* Full-screen countdown overlay */}
-      {state === 'countdown' && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none select-none">
-          <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-8">
-            {label.replace('Deslize para registrar ', '')}
-          </p>
-          <p className="text-white font-bold leading-none" style={{ fontSize: '128px', lineHeight: 1 }}>
-            {countdownNum}
-          </p>
-          {/* Circular arc */}
-          <div className="mt-10">
-            <svg width="64" height="64" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,0.15)" strokeWidth="4" fill="none" />
-              <circle cx="32" cy="32" r="26"
-                stroke="white"
-                strokeWidth="4" fill="none"
-                strokeDasharray={2 * Math.PI * 26}
-                strokeDashoffset={2 * Math.PI * 26 * (1 - arcPct)}
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-          <p className="text-white/30 text-xs mt-6">Solte para cancelar</p>
-        </div>
-      )}
+      {/* Portal garante que o overlay sai de qualquer containing block (backdrop-filter no iOS Safari) */}
+      {typeof document !== 'undefined' && overlay && createPortal(overlay, document.body)}
 
     <div
       ref={trackRef}

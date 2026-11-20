@@ -85,10 +85,6 @@ export default function DashboardClient({
     setTipo(proximoFromTipo(tipo));
     setMensagem(`${tipo} registrada com sucesso!`);
 
-    if (data.alertaRH) {
-      setMensagem(prev => prev + ' (fora do raio — RH notificado)');
-    }
-
     setTimeout(() => setMensagem(''), 5000);
     router.refresh();
   }
